@@ -501,7 +501,28 @@ function renderHome() {
 
   renderReminders(entry, meta);
 }
+async function loadDayNotesFromSupabase() {
+  const { data, error } = await supabaseClient
+    .from("day_notes")
+    .select("*")
+    .order("note_date", { ascending: true });
 
+  if (error) {
+    alert("Σφάλμα φόρτωσης σημειώσεων: " + error.message);
+    return;
+  }
+
+  dayNotes = (data || []).map(row => ({
+    id: row.id,
+    date: row.note_date,
+    symbol: row.symbol || "",
+    note: row.note || ""
+  }));
+}
+
+function getDayNote(dateStr) {
+  return dayNotes.find(n => n.date === dateStr) || null;
+}
 function renderCalendar() {
   if (!$("#calendarTitle") || !$("#calendarGrid")) return;
 
@@ -554,12 +575,27 @@ function renderCalendar() {
       }
     }
 
-    cell.addEventListener("click", () => {
-      selectedDay = ds;
-      if ($("#dayModal")) $("#dayModal").classList.add("open");
-      if ($("#dayModalTitle")) $("#dayModalTitle").textContent = "Σημείωση ημέρας";
-      if ($("#dayModalSub")) $("#dayModalSub").textContent = fmt(ds);
-    });
+    const dayNote = getDayNote(ds);
+
+if (dayNote && dayNote.symbol) {
+  cell.innerHTML += `<div class="sym">${dayNote.symbol}</div>`;
+  cell.title = dayNote.note || "";
+}
+
+cell.addEventListener("click", () => {
+  selectedDay = ds;
+  const existing = getDayNote(ds);
+  selectedDaySymbol = existing ? (existing.symbol || "") : "";
+
+  if ($("#dayModal")) $("#dayModal").classList.add("open");
+  if ($("#dayModalTitle")) $("#dayModalTitle").textContent = "Σημείωση ημέρας";
+  if ($("#dayModalSub")) $("#dayModalSub").textContent = fmt(ds);
+  if ($("#dayNote")) $("#dayNote").value = existing ? (existing.note || "") : "";
+
+  $$(".tagbtn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.symbol === selectedDaySymbol);
+  });
+});
 
     grid.appendChild(cell);
   }
@@ -756,14 +792,82 @@ function bindEvents() {
     if ($("#dayModal")) $("#dayModal").classList.remove("open");
   });
 
-  $("#saveDayBtn")?.addEventListener("click", () => {
-    alert("Η αποθήκευση day note θα προστεθεί μετά.");
-  });
+  $("#saveDayBtn")?.addEventListener("click", async () => {
+  if (!selectedDay) return;
 
-  $("#clearDayBtn")?.addEventListener("click", () => {
-    if ($("#dayNote")) $("#dayNote").value = "";
-  });
+  const noteText = $("#dayNote")?.value?.trim() || "";
+  const existing = getDayNote(selectedDay);
 
+  if (existing) {
+    const { error } = await supabaseClient
+      .from("day_notes")
+      .update({
+        symbol: selectedDaySymbol,
+        note: noteText
+      })
+      .eq("id", existing.id);
+
+    if (error) {
+      alert("Σφάλμα αποθήκευσης σημείωσης: " + error.message);
+      return;
+    }
+  } else {
+    const { error } = await supabaseClient
+      .from("day_notes")
+      .insert([{
+        user_id: null,
+        note_date: selectedDay,
+        symbol: selectedDaySymbol,
+        note: noteText
+      }]);
+
+    if (error) {
+      alert("Σφάλμα αποθήκευσης σημείωσης: " + error.message);
+      return;
+    }
+  }
+
+  await loadDayNotesFromSupabase();
+  renderCalendar();
+
+  if ($("#dayModal")) $("#dayModal").classList.remove("open");
+  alert("Αποθηκεύτηκε η σημείωση ημέρας.");
+});
+
+$("#clearDayBtn")?.addEventListener("click", async () => {
+  if (!selectedDay) return;
+
+  const existing = getDayNote(selectedDay);
+
+  if (existing) {
+    const { error } = await supabaseClient
+      .from("day_notes")
+      .delete()
+      .eq("id", existing.id);
+
+    if (error) {
+      alert("Σφάλμα διαγραφής σημείωσης: " + error.message);
+      return;
+    }
+  }
+
+  if ($("#dayNote")) $("#dayNote").value = "";
+  selectedDaySymbol = "";
+
+  await loadDayNotesFromSupabase();
+  renderCalendar();
+
+  if ($("#dayModal")) $("#dayModal").classList.remove("open");
+});
+$$(".tagbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    selectedDaySymbol = btn.dataset.symbol || "";
+
+    $$(".tagbtn").forEach(b => {
+      b.classList.toggle("active", b.dataset.symbol === selectedDaySymbol);
+    });
+  });
+});
   $("#requestNotifBtn")?.addEventListener("click", async () => {
     if (!("Notification" in window)) {
       alert("Ο browser δεν υποστηρίζει notifications.");
@@ -789,6 +893,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   await loadEntriesFromSupabase();
+  await loadDayNotesFromSupabase();
   renderAll();
 });
 </script>
