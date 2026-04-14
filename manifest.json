@@ -1,0 +1,15 @@
+{
+  "name": "Cycle Bloom Premium",
+  "short_name": "Cycle Bloom",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff7fa",
+  "theme_color": "#e88faa",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

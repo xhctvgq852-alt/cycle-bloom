@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cycle Bloom Premium</title>
+<meta name="theme-color" content="#e88faa">
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#fff7fa; --card:#ffffff; --text:#4f2d38; --muted:#94727d; --line:#efdbe1;
+  --accent:#e88faa; --accent-soft:#fff0f5; --accent-dark:#cf6787;
+  --period:#ffb1c5; --fertile:#b9ebc3; --ovulation:#ffe170; --safe:#f3edf0;
+  --nextperiod:#c8c5ff; --nextperiod-line:#8f89ea; --report:#d7f2ff; --trend:#fcebd6;
+  --shadow:0 10px 28px rgba(140,90,106,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:linear-gradient(180deg,#fff7fa,#fff);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.app{max-width:560px;margin:0 auto;min-height:100dvh;padding:14px 14px 92px}
+.header{background:linear-gradient(135deg,#ffe6ee,#fff);border:1px solid var(--line);border-radius:26px;padding:18px;box-shadow:var(--shadow)}
+.header h1{margin:0;font-size:1.45rem}.header p{margin:6px 0 0;color:var(--muted);font-size:.94rem}
+.screen{display:none}.screen.active{display:block}
+.card{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:var(--shadow)}
+.card h2{margin:0 0 10px;font-size:1.05rem}
+label{display:block;margin:8px 0 6px;color:var(--muted);font-size:.9rem}
+input,textarea,select,button{width:100%;font:inherit;border-radius:16px}
+input,textarea,select{border:1px solid var(--line);padding:13px 14px;background:#fff;color:var(--text)}
+textarea{min-height:82px;resize:vertical}
+button{border:none;padding:14px;background:linear-gradient(180deg,#eea3ba,#e88faa);color:#fff;font-weight:700}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
+button.ghost{background:var(--accent-soft);color:var(--text);border:1px solid var(--line)}
+button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border:1px solid var(--line);border-radius:18px;padding:12px;background:linear-gradient(180deg,#fff,#fffafb)}
+.stat small{display:block;color:var(--muted)} .stat strong{display:block;margin-top:4px;font-size:1rem}
+.big{border:1px solid var(--line);border-radius:20px;padding:16px;background:linear-gradient(180deg,#fff4f8,#fff)}
+.big small{display:block;color:var(--muted)} .big strong{display:block;font-size:1.35rem;margin-top:5px}
+.pill{display:inline-block;padding:8px 12px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--line);font-size:.84rem}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.badge{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:.82rem}
+.badge.report{background:var(--report)}
+.badge.trend{background:var(--trend)}
+.calendar-head{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center;margin-bottom:10px}
+.calendar-head button{padding:10px 0}.cal-title{text-align:center;font-weight:700}
+.weekdays,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.weekdays div{text-align:center;font-size:.78rem;color:var(--muted)}
+.day{min-height:82px;border-radius:18px;border:1px solid #ece2e6;background:var(--safe);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 4px;cursor:pointer;position:relative}
+.day .num{font-weight:700}
+.day .mini{margin-top:4px;font-size:.72rem;color:rgba(0,0,0,.62);text-align:center;line-height:1.05}
+.day .sym{margin-top:4px;font-size:1rem}
+.day.period{background:var(--period);border-color:#ea89a7}
+.day.fertile{background:var(--fertile);border-color:#84cf93}
+.day.ovulation{background:var(--ovulation);border-color:#d9b51f}
+.day.nextperiod{background:var(--nextperiod);border-color:var(--nextperiod-line)}
+.day.today{outline:3px solid var(--accent)}
+.day.empty{visibility:hidden;cursor:default}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.legend span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.84rem}
+.dot{width:14px;height:14px;border-radius:7px;border:1px solid rgba(0,0,0,.05);display:inline-block}
+.insight,.history-item,.reminder-item,.report-card{margin-top:10px;border:1px solid var(--line);border-radius:18px;background:#fff;padding:12px}
+.insight strong,.history-item strong,.reminder-item strong,.report-card strong{display:block;margin-bottom:4px}
+.history-actions{display:flex;gap:8px;margin-top:10px}.history-actions button{width:auto;padding:10px 12px;border-radius:12px}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+.bottom-wrap{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.nav-btn{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:10px 6px;font-size:.75rem}
+.nav-btn.active{color:var(--text);font-weight:700;background:linear-gradient(180deg,#fff1f6,#fff)}
+.small{font-size:.86rem}.muted{color:var(--muted)}
+.empty-state{padding:14px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);text-align:center}
+.modal{position:fixed;inset:0;background:rgba(47,28,36,.35);display:none;align-items:flex-end;justify-content:center;padding:14px}
+.modal.open{display:flex}
+.sheet{width:min(560px,100%);background:#fff;border-radius:24px 24px 18px 18px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.18);max-height:85vh;overflow:auto}
+.sheet h3{margin:0 0 8px}.sheet .close-row{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
+.tagrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tagbtn{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px 6px;font-size:1.1rem}
+.tagbtn.active{background:var(--accent-soft);border-color:var(--accent)}
+.canvas-wrap{margin-top:10px}
+canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:16px}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #f4e7eb}
+.switchrow:last-child{border-bottom:none}
+.switchrow input{width:20px;height:20px}
+.note{font-size:.82rem;color:var(--muted);margin-top:8px;line-height:1.4}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Cycle Bloom Premium</h1>
+    <p>Με ξεχωριστή σήμανση επόμενης περιόδου, report cards, trend badges και notifications μέσα στην εφαρμογή — plus προετοιμασία για push.</p>
+  </div>
+
+  <section id="screen-home" class="screen active">
+    <div class="card">
+      <h2>Καταχώρηση κύκλου</h2>
+      <label>1η μέρα περιόδου</label>
+      <input id="startDate" type="date">
+      <div class="row">
+        <div><label>Διάρκεια κύκλου</label><input id="cycleLength" type="number" min="21" max="40" value="28"></div>
+        <div><label>Διάρκεια περιόδου</label><input id="periodLength" type="number" min="2" max="10" value="5"></div>
+      </div>
+      <label>Σημείωση μήνα</label>
+      <textarea id="note" placeholder="π.χ. κράμπες, αλλαγές, παρατηρήσεις"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="saveBtn">Αποθήκευση</button>
+        <button id="clearBtn" class="secondary">Καθαρισμός</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Smart prediction</h2>
+      <div class="big">
+        <small>Επόμενη περίοδος</small>
+        <strong id="nextPeriodMain">—</strong>
+        <div class="small muted" id="countdownText" style="margin-top:6px">—</div>
+      </div>
+      <div class="stats" style="margin-top:10px">
+        <div class="stat"><small>Ωορρηξία</small><strong id="ovulationText">—</strong></div>
+        <div class="stat"><small>Γόνιμες</small><strong id="fertileText">—</strong></div>
+        <div class="stat"><small>Ημέρα κύκλου</small><strong id="cycleDayText">—</strong></div>
+        <div class="stat"><small>Confidence</small><strong id="confidenceText">—</strong></div>
+      </div>
+      <div class="badges" id="trendBadges"></div>
+      <div style="margin-top:10px"><span class="pill" id="flagText">Δεν υπάρχουν ακόμη flags</span></div>
+    </div>
+
+    <div class="card">
+      <h2>In-app reminders</h2>
+      <div id="remindersToday"></div>
+    </div>
+  </section>
+
+  <section id="screen-calendar" class="screen">
+    <div class="card">
+      <h2>Ημερολόγιο</h2>
+      <div class="calendar-head">
+        <button id="prevBtn" class="secondary">‹</button>
+        <div class="cal-title" id="calendarTitle">—</div>
+        <button id="nextBtn" class="secondary">›</button>
+      </div>
+      <div class="weekdays">
+        <div>Δευ</div><div>Τρι</div><div>Τετ</div><div>Πεμ</div><div>Παρ</div><div>Σαβ</div><div>Κυρ</div>
+      </div>
+      <div class="grid" id="calendarGrid"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--period)"></i> Περίοδος</span>
+        <span><i class="dot" style="background:var(--fertile)"></i> Γόνιμες</span>
+        <span><i class="dot" style="background:var(--ovulation)"></i> Ωορρηξία</span>
+        <span><i class="dot" style="background:var(--nextperiod)"></i> Επόμενη περίοδος</span>
+        <span><i class="dot" style="background:var(--safe)"></i> Safe</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-insights" class="screen">
+    <div class="card">
+      <h2>Insights</h2>
+      <div class="stats">
+        <div class="stat"><small>Μέσος κύκλος</small><strong id="avgCycle">—</strong></div>
+        <div class="stat"><small>Μέση περίοδος</small><strong id="avgPeriod">—</strong></div>
+        <div class="stat"><small>Σταθερότητα</small><strong id="stability">—</strong></div>
+        <div class="stat"><small>Τάση</small><strong id="trend">—</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Έξυπνες παρατηρήσεις</h2>
+      <div id="insightsList"></div>
+    </div>
+  </section>
+
+  <section id="screen-history" class="screen">
+    <div class="card">
+      <h2>Ιστορικό μηνών</h2>
+      <div id="historyList"></div>
+    </div>
+  </section>
+
+  <section id="screen-reports" class="screen">
+    <div class="card">
+      <h2>Reports</h2>
+      <div class="canvas-wrap"><canvas id="cycleChart" width="480" height="220"></canvas></div>
+      <div class="small muted" style="margin-top:8px">Ροζ: πραγματικές διάρκειες κύκλου · Μωβ: smart prediction</div>
+    </div>
+    <div class="card">
+      <h2>Monthly report cards</h2>
+      <div id="reportCards"></div>
+    </div>
+    <div class="card">
+      <h2>Notifications</h2>
+      <div class="switchrow"><span>Υπενθύμιση 2 μέρες πριν την περίοδο</span><input id="reminderPeriod" type="checkbox"></div>
+      <div class="switchrow"><span>Υπενθύμιση την ημέρα ωορρηξίας</span><input id="reminderOvulation" type="checkbox"></div>
+      <div class="switchrow"><span>Υπενθύμιση για καταγραφή σημείωσης</span><input id="reminderLog" type="checkbox"></div>
+      <div class="switchrow"><span>Browser notifications όταν το app είναι ανοιχτό</span><input id="browserNotif" type="checkbox"></div>
+      <button id="requestNotifBtn" class="ghost" style="margin-top:12px">Ενεργοποίηση ειδοποιήσεων browser</button>
+      <div class="note">Σημαντικό: τα αληθινά push notifications στο iPhone χρειάζονται το app να ανέβει online και service worker με server-side push. Σε αυτό το version έβαλα browser notifications και όλη τη δομή για το επόμενο βήμα.</div>
+    </div>
+  </section>
+</div>
+
+<div id="dayModal" class="modal">
+  <div class="sheet">
+    <div class="close-row">
+      <h3 id="dayModalTitle">Σημείωση ημέρας</h3>
+      <button id="closeDayModal" class="secondary" style="width:auto;padding:10px 12px">Κλείσιμο</button>
+    </div>
+    <div class="small muted" id="dayModalSub">—</div>
+    <label>Σύμβολο</label>
+    <div class="tagrow">
+      <button class="tagbtn" data-symbol="">—</button>
+      <button class="tagbtn" data-symbol="❤">❤</button>
+      <button class="tagbtn" data-symbol="★">★</button>
+      <button class="tagbtn" data-symbol="✚">✚</button>
+      <button class="tagbtn" data-symbol="💊">💊</button>
+      <button class="tagbtn" data-symbol="🩸">🩸</button>
+      <button class="tagbtn" data-symbol="🙂">🙂</button>
+      <button class="tagbtn" data-symbol="😣">😣</button>
+    </div>
+    <label>Σημείωση ημέρας</label>
+    <textarea id="dayNote" placeholder="Γράψε κάτι για αυτή την ημέρα"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button id="saveDayBtn">Αποθήκευση ημέρας</button>
+      <button id="clearDayBtn" class="danger">Καθαρισμός</button>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <div class="bottom-wrap">
+    <button class="nav-btn active" data-screen="home">Today</button>
+    <button class="nav-btn" data-screen="calendar">Ημερολόγιο</button>
+    <button class="nav-btn" data-screen="insights">Insights</button>
+    <button class="nav-btn" data-screen="history">Ιστορικό</button>
+    <button class="nav-btn" data-screen="reports">Reports</button>
+  </div>
+</nav>
+
+<script>
+const KEY='cycleBloomPremiumNotificationsV1';
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+let appData=loadData(), currentMonth=new Date(), editingId=null, selectedDay=null, selectedDaySymbol='';
+
+function defaultData(){return {entries:[], settings:{reminderPeriod:true, reminderOvulation:true, reminderLog:false, browserNotif:false}, notifLog:[]};}
+function loadData(){ try{ return Object.assign(defaultData(), JSON.parse(localStorage.getItem(KEY))||{}); }catch(e){ return defaultData(); } }
+function saveData(){ localStorage.setItem(KEY, JSON.stringify(appData)); }
+function uid(){ return 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function ymd(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function fmt(dateStr){ if(!dateStr) return '—'; return new Date(dateStr+'T00:00:00').toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function addDays(dateStr,days){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+days); return ymd(d); }
+function diffDays(fromStr,toStr){ const a=new Date(fromStr+'T00:00:00'); const b=new Date(toStr+'T00:00:00'); return Math.round((b-a)/(1000*60*60*24)); }
+function monthTitle(d){ return d.toLocaleDateString('el-GR',{month:'long',year:'numeric'}); }
+function sortEntries(){ appData.entries.sort((a,b)=>a.startDate.localeCompare(b.startDate)); }
+function entriesSorted(){ return [...appData.entries].sort((a,b)=>a.startDate.localeCompare(b.startDate)); }
+function lastEntry(){ const arr=entriesSorted(); return arr.length ? arr[arr.length-1] : null; }
+function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function inferredCycleLengths(){ const arr=entriesSorted(); const diffs=[]; for(let i=1;i<arr.length;i++){ const d=diffDays(arr[i-1].startDate, arr[i].startDate); if(d>0) diffs.push(d);} return diffs; }
+function smartCycleLength(){ const inferred=inferredCycleLengths(); const explicit=entriesSorted().map(e=>Number(e.cycleLength||0)).filter(Boolean); const source=inferred.length ? inferred.slice(-6) : explicit.slice(-6); const value=avg(source); return value ? Math.round(value) : null; }
+function confidenceLabel(){ const inferred=inferredCycleLengths(); const n=inferred.length || appData.entries.length; if(n>=6) return 'Υψηλή'; if(n>=3) return 'Μέτρια'; if(n>=1) return 'Βασική'; return 'Χαμηλή'; }
+function cycleMeta(entry){
+  if(!entry) return null;
+  const smartLen=smartCycleLength() || Number(entry.cycleLength||28);
+  const cycleLen=appData.entries.length>=2 ? smartLen : Number(entry.cycleLength||28);
+  const ovulation=addDays(entry.startDate, cycleLen-14);
+  const fertileStart=addDays(ovulation,-5);
+  const fertileEnd=addDays(ovulation,1);
+  const nextPeriod=addDays(entry.startDate, cycleLen);
+  return {ovulation,fertileStart,fertileEnd,nextPeriod,cycleLen};
+}
+function cycleDay(entry){ if(!entry) return '—'; const day=diffDays(entry.startDate, ymd(new Date()))+1; return day>0 ? `Ημέρα ${day}` : '—'; }
+function countdownText(targetStr){ const today=ymd(new Date()); const d=diffDays(today,targetStr); if(d>1) return `Σε περίπου ${d} μέρες`; if(d===1) return 'Αύριο'; if(d===0) return 'Σήμερα'; if(d===-1) return 'Ήταν χθες'; return `Έχουν περάσει ${Math.abs(d)} μέρες`; }
+function getStats(){
+  const explicit=entriesSorted().map(e=>Number(e.cycleLength||0)).filter(Boolean);
+  const inferred=inferredCycleLengths();
+  const cycles=inferred.length ? inferred : explicit;
+  const periods=entriesSorted().map(e=>Number(e.periodLength||0)).filter(Boolean);
+  const avgCycle=avg(cycles), avgPeriod=avg(periods);
+  let stability='—'; if(cycles.length>=2){ const spread=Math.max(...cycles)-Math.min(...cycles); stability=spread<=2 ? 'Πολύ σταθερός' : spread<=4 ? 'Μέτρια σταθερός' : 'Μεταβαλλόμενος'; }
+  let trend='—'; if(cycles.length>=3){ const recent=avg(cycles.slice(-3)); trend=recent>avgCycle+1 ? 'Μεγαλώνει' : recent<avgCycle-1 ? 'Μικραίνει' : 'Σταθερός'; }
+  return {avgCycle, avgPeriod, stability, trend};
+}
+function trendBadges(){
+  const stats=getStats(), out=[];
+  if(stats.stability!=='—') out.push({label:stats.stability, cls:'trend'});
+  if(stats.trend!=='—') out.push({label:'Τάση: '+stats.trend, cls:'trend'});
+  if(confidenceLabel()!=='Χαμηλή') out.push({label:'Confidence: '+confidenceLabel(), cls:'report'});
+  return out;
+}
+function buildInsights(){
+  const list=$('#insightsList'); list.innerHTML='';
+  const entry=lastEntry();
+  if(!entry){ list.innerHTML='<div class="insight"><strong>Ξεκίνα με μια καταχώρηση</strong><div class="small muted">Μόλις αποθηκεύσεις κύκλους, θα δεις παρατηρήσεις και μοτίβα.</div></div>'; return; }
+  const stats=getStats(), meta=cycleMeta(entry);
+  const insights=[
+    ['Smart prediction', `Η επόμενη περίοδος εκτιμάται για ${fmt(meta.nextPeriod)} με confidence ${confidenceLabel().toLowerCase()}.`],
+    ['Μέσος κύκλος', stats.avgCycle ? `Ο μέσος κύκλος σου είναι περίπου ${Math.round(stats.avgCycle)} ημέρες.` : 'Δεν υπάρχουν αρκετά δεδομένα ακόμη.'],
+    ['Σταθερότητα', `Ο κύκλος σου φαίνεται: ${stats.stability.toLowerCase()}.`],
+    ['Επόμενη ωορρηξία', `Πιθανή ημερομηνία ωορρηξίας: ${fmt(meta.ovulation)}.`]
+  ];
+  insights.forEach(([title,body])=>{ const div=document.createElement('div'); div.className='insight'; div.innerHTML=`<strong>${title}</strong><div class="small">${body}</div>`; list.appendChild(div); });
+}
+function renderTrendBadges(){
+  const box=$('#trendBadges'); box.innerHTML='';
+  const badges=trendBadges();
+  if(!badges.length) return;
+  badges.forEach(b=>{ const span=document.createElement('span'); span.className='badge '+b.cls; span.textContent=b.label; box.appendChild(span); });
+}
+function renderHome(){
+  const entry=lastEntry();
+  if(!entry){ $('#nextPeriodMain').textContent='—'; $('#countdownText').textContent='—'; $('#ovulationText').textContent='—'; $('#fertileText').textContent='—'; $('#cycleDayText').textContent='—'; $('#confidenceText').textContent='—'; $('#flagText').textContent='Δεν υπάρχουν ακόμη flags'; $('#trendBadges').innerHTML=''; return; }
+  const meta=cycleMeta(entry);
+  $('#nextPeriodMain').textContent=fmt(meta.nextPeriod);
+  $('#countdownText').textContent=countdownText(meta.nextPeriod);
+  $('#ovulationText').textContent=fmt(meta.ovulation);
+  $('#fertileText').textContent=`${fmt(meta.fertileStart)} – ${fmt(meta.fertileEnd)}`;
+  $('#cycleDayText').textContent=cycleDay(entry);
+  $('#confidenceText').textContent=confidenceLabel();
+  $('#flagText').textContent=(meta.cycleLen<28||meta.cycleLen>30)?'Smart cycle εκτός συνηθισμένου εύρους 28–30':'Όλα εντός συνηθισμένου εύρους';
+  renderTrendBadges();
+  renderReminders(entry, meta);
+  maybeBrowserNotify(entry, meta);
+}
+function notesMap(){ const map={}; appData.entries.forEach(e=>{ (e.dayNotes||[]).forEach(n=>{ map[n.date]=n; }); }); return map; }
+function renderCalendar(){
+  $('#calendarTitle').textContent=monthTitle(currentMonth);
+  const grid=$('#calendarGrid'); grid.innerHTML='';
+  const y=currentMonth.getFullYear(), m=currentMonth.getMonth();
+  const first=new Date(y,m,1), offset=(first.getDay()+6)%7;
+  for(let i=0;i<offset;i++){ const empty=document.createElement('div'); empty.className='day empty'; grid.appendChild(empty); }
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const entry=lastEntry(), noteByDate=notesMap();
+  let meta=null, periodEnd=null;
+  if(entry){ meta=cycleMeta(entry); periodEnd=addDays(entry.startDate, Number(entry.periodLength||5)-1); }
+  for(let day=1; day<=daysInMonth; day++){
+    const ds=ymd(new Date(y,m,day)); const cell=document.createElement('div'); cell.className='day'; cell.innerHTML=`<div class="num">${day}</div>`;
+    if(ds===ymd(new Date())) cell.classList.add('today');
+    if(entry){
+      if(ds===meta.nextPeriod){ cell.classList.add('nextperiod'); cell.innerHTML += `<div class="mini">Επ. περ.</div>`; }
+      else if(ds >= entry.startDate && ds <= periodEnd){ cell.classList.add('period'); cell.innerHTML += `<div class="mini">Περ.</div>`; }
+      else if(ds === meta.ovulation){ cell.classList.add('ovulation'); cell.innerHTML += `<div class="mini">Ωορρ.</div>`; }
+      else if(ds >= meta.fertileStart && ds <= meta.fertileEnd){ cell.classList.add('fertile'); cell.innerHTML += `<div class="mini">Γόνιμη</div>`; }
+    }
+    if(noteByDate[ds]){ const sym=noteByDate[ds].symbol||'•'; cell.innerHTML += `<div class="sym">${sym}</div>`; cell.title=noteByDate[ds].note||''; }
+    cell.addEventListener('click', ()=>openDayModal(ds));
+    grid.appendChild(cell);
+  }
+}
+function renderInsightsScreen(){
+  const stats=getStats();
+  $('#avgCycle').textContent=stats.avgCycle ? Math.round(stats.avgCycle)+' ημέρες':'—';
+  $('#avgPeriod').textContent=stats.avgPeriod ? Math.round(stats.avgPeriod)+' ημέρες':'—';
+  $('#stability').textContent=stats.stability;
+  $('#trend').textContent=stats.trend;
+  buildInsights();
+  drawReports();
+  renderReportCards();
+  $('#reminderPeriod').checked=!!appData.settings.reminderPeriod;
+  $('#reminderOvulation').checked=!!appData.settings.reminderOvulation;
+  $('#reminderLog').checked=!!appData.settings.reminderLog;
+  $('#browserNotif').checked=!!appData.settings.browserNotif;
+}
+function renderHistory(){
+  const box=$('#historyList'); box.innerHTML='';
+  const entries=entriesSorted().slice().reverse();
+  if(!entries.length){ box.innerHTML='<div class="empty-state">Δεν υπάρχουν αποθηκευμένοι μήνες ακόμη.</div>'; return; }
+  entries.forEach(entry=>{
+    const meta=cycleMeta(entry); const div=document.createElement('div'); div.className='history-item';
+    div.innerHTML=`
+      <strong>${fmt(entry.startDate)}</strong>
+      <div class="small muted">Κύκλος ${entry.cycleLength} ημέρες · Περίοδος ${entry.periodLength} ημέρες</div>
+      <div class="small" style="margin-top:6px">Smart πρόβλεψη επόμενης περιόδου: <strong>${fmt(meta.nextPeriod)}</strong></div>
+      ${entry.note ? `<div class="small" style="margin-top:6px">📝 ${escapeHtml(entry.note)}</div>` : ''}
+      <div class="history-actions">
+        <button class="ghost" data-edit="${entry.id}">Επεξεργασία</button>
+        <button class="danger" data-delete="${entry.id}">Διαγραφή</button>
+      </div>`;
+    box.appendChild(div);
+  });
+  box.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click', ()=>startEdit(btn.dataset.edit)));
+  box.querySelectorAll('[data-delete]').forEach(btn=>btn.addEventListener('click', ()=>deleteEntry(btn.dataset.delete)));
+}
+function renderReportCards(){
+  const box=$('#reportCards'); box.innerHTML='';
+  const entries=entriesSorted().slice().reverse();
+  if(!entries.length){ box.innerHTML='<div class="empty-state">Δεν υπάρχουν αρκετά δεδομένα για report cards.</div>'; return; }
+  entries.slice(0,6).forEach(entry=>{
+    const meta=cycleMeta(entry);
+    const div=document.createElement('div'); div.className='report-card';
+    div.innerHTML=`
+      <strong>${fmt(entry.startDate)}</strong>
+      <div class="small">Διάρκεια κύκλου: ${entry.cycleLength} ημέρες</div>
+      <div class="small">Διάρκεια περιόδου: ${entry.periodLength} ημέρες</div>
+      <div class="small">Smart επόμενη περίοδος: ${fmt(meta.nextPeriod)}</div>
+      <div class="small">Confidence: ${confidenceLabel()}</div>`;
+    box.appendChild(div);
+  });
+}
+function startEdit(id){
+  const entry=appData.entries.find(e=>e.id===id); if(!entry) return;
+  editingId=id; $('#startDate').value=entry.startDate; $('#cycleLength').value=entry.cycleLength; $('#periodLength').value=entry.periodLength; $('#note').value=entry.note||''; openScreen('home');
+}
+function deleteEntry(id){
+  if(!confirm('Να διαγραφεί αυτός ο κύκλος;')) return;
+  appData.entries=appData.entries.filter(e=>e.id!==id); saveData(); if(editingId===id) editingId=null; renderAll();
+}
+function saveEntry(){
+  const startDate=$('#startDate').value, cycleLength=Number($('#cycleLength').value||28), periodLength=Number($('#periodLength').value||5), note=$('#note').value.trim();
+  if(!startDate){ alert('Βάλε την 1η μέρα περιόδου.'); return; }
+  if(editingId){ const entry=appData.entries.find(e=>e.id===editingId); if(entry){ entry.startDate=startDate; entry.cycleLength=cycleLength; entry.periodLength=periodLength; entry.note=note; } editingId=null; }
+  else { appData.entries.push({id:uid(), startDate, cycleLength, periodLength, note, dayNotes:[]}); }
+  saveData(); currentMonth=new Date(startDate+'T00:00:00'); clearForm(false); renderAll(); alert('Αποθηκεύτηκε.');
+}
+function clearForm(resetEdit=true){ $('#startDate').value=''; $('#cycleLength').value=28; $('#periodLength').value=5; $('#note').value=''; if(resetEdit) editingId=null; }
+function openScreen(name){ $$('.screen').forEach(s=>s.classList.remove('active')); $('#screen-'+name).classList.add('active'); $$('.nav-btn').forEach(b=>b.classList.remove('active')); document.querySelector(`.nav-btn[data-screen="${name}"]`).classList.add('active'); }
+function getDayNote(dateStr){ for(const entry of appData.entries){ const found=(entry.dayNotes||[]).find(n=>n.date===dateStr); if(found) return {entry, noteObj: found}; } return null; }
+function openDayModal(dateStr){ selectedDay=dateStr; $('#dayModalTitle').textContent='Σημείωση ημέρας'; $('#dayModalSub').textContent=fmt(dateStr); const found=getDayNote(dateStr); selectedDaySymbol=found ? (found.noteObj.symbol||'') : ''; $('#dayNote').value=found ? (found.noteObj.note||'') : ''; updateSymbolButtons(); $('#dayModal').classList.add('open'); }
+function closeDayModal(){ $('#dayModal').classList.remove('open'); }
+function updateSymbolButtons(){ $$('.tagbtn').forEach(btn=>btn.classList.toggle('active', btn.dataset.symbol===selectedDaySymbol)); }
+function ensureLastEntryForDayNotes(){ let entry=lastEntry(); if(!entry){ const today=ymd(new Date()); entry={id:uid(), startDate:today, cycleLength:28, periodLength:5, note:'', dayNotes:[]}; appData.entries.push(entry); } entry.dayNotes=entry.dayNotes||[]; return entry; }
+function saveDayNote(){ if(!selectedDay) return; const entry=ensureLastEntryForDayNotes(); const noteText=$('#dayNote').value.trim(); const existing=entry.dayNotes.find(n=>n.date===selectedDay); if(existing){ existing.symbol=selectedDaySymbol; existing.note=noteText; } else { entry.dayNotes.push({date:selectedDay, symbol:selectedDaySymbol, note:noteText}); } saveData(); closeDayModal(); renderCalendar(); }
+function clearDayNote(){ if(!selectedDay) return; appData.entries.forEach(e=>{ e.dayNotes=(e.dayNotes||[]).filter(n=>n.date!==selectedDay); }); saveData(); selectedDaySymbol=''; $('#dayNote').value=''; closeDayModal(); renderCalendar(); }
+function renderReminders(entry, meta){
+  const box=$('#remindersToday'); box.innerHTML=''; if(!entry){ box.innerHTML='<div class="empty-state">Δεν υπάρχουν reminders ακόμη.</div>'; return; }
+  const today=ymd(new Date()); const items=[];
+  if(appData.settings.reminderPeriod && diffDays(today, meta.nextPeriod)===2) items.push(['Περίοδος σύντομα', 'Η επόμενη περίοδος εκτιμάται σε 2 μέρες.']);
+  if(appData.settings.reminderPeriod && diffDays(today, meta.nextPeriod)===0) items.push(['Ημέρα περιόδου', 'Σύμφωνα με την πρόβλεψη, η περίοδος είναι σήμερα.']);
+  if(appData.settings.reminderOvulation && diffDays(today, meta.ovulation)===0) items.push(['Ωορρηξία σήμερα', 'Σήμερα είναι η πιθανή ημέρα ωορρηξίας.']);
+  if(appData.settings.reminderLog){ const found=getDayNote(today); if(!found) items.push(['Μικρή καταγραφή', 'Σημείωσε πώς νιώθεις σήμερα ή πρόσθεσε ένα σύμβολο.']); }
+  if(!items.length){ box.innerHTML='<div class="empty-state">Καμία ενεργή υπενθύμιση για σήμερα.</div>'; return; }
+  items.forEach(([title,body])=>{ const div=document.createElement('div'); div.className='reminder-item'; div.innerHTML=`<strong>${title}</strong><div class="small">${body}</div>`; box.appendChild(div); });
+}
+function maybeBrowserNotify(entry, meta){
+  if(!appData.settings.browserNotif) return;
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'granted') return;
+  const today=ymd(new Date());
+  const sent=appData.notifLog || [];
+  const candidates=[];
+  if(appData.settings.reminderPeriod && diffDays(today, meta.nextPeriod)===2) candidates.push({id:'period2-'+today, title:'Cycle Bloom', body:'Η επόμενη περίοδος εκτιμάται σε 2 μέρες.'});
+  if(appData.settings.reminderPeriod && diffDays(today, meta.nextPeriod)===0) candidates.push({id:'period0-'+today, title:'Cycle Bloom', body:'Σύμφωνα με την πρόβλεψη, η περίοδος είναι σήμερα.'});
+  if(appData.settings.reminderOvulation && diffDays(today, meta.ovulation)===0) candidates.push({id:'ovu0-'+today, title:'Cycle Bloom', body:'Σήμερα είναι η πιθανή ημέρα ωορρηξίας.'});
+  if(appData.settings.reminderLog){ const found=getDayNote(today); if(!found) candidates.push({id:'log-'+today, title:'Cycle Bloom', body:'Μην ξεχάσεις μια μικρή καταγραφή για σήμερα.'}); }
+  candidates.forEach(c=>{
+    if(!sent.includes(c.id)){
+      try{ new Notification(c.title, {body:c.body}); appData.notifLog.push(c.id); saveData(); }catch(e){}
+    }
+  });
+}
+function drawReports(){
+  const canvas=$('#cycleChart'); if(!canvas) return; const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  const entries=entriesSorted().slice(-8); if(!entries.length){ ctx.fillStyle='#94727d'; ctx.font='16px sans-serif'; ctx.fillText('Δεν υπάρχουν αρκετά δεδομένα για report.', 20, 40); return; }
+  const vals=entries.map(e=>Number(e.cycleLength||0)); const smart=entries.map(()=>smartCycleLength()||0);
+  const maxY=Math.max(35, ...vals, ...smart); const pad=34, w=canvas.width, h=canvas.height;
+  ctx.strokeStyle='#f0dfe5'; for(let i=0;i<4;i++){ const y=pad+((h-pad*2)/3)*i; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); }
+  const step=entries.length>1 ? (w-pad*2)/(entries.length-1) : 0; const yPos=v => h-pad - (v/maxY)*(h-pad*2);
+  ctx.strokeStyle='#e88faa'; ctx.lineWidth=3; ctx.beginPath(); vals.forEach((v,i)=>{ const x=pad+step*i,y=yPos(v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);}); ctx.stroke();
+  ctx.strokeStyle='#8f89ea'; ctx.lineWidth=2; ctx.beginPath(); smart.forEach((v,i)=>{ const x=pad+step*i,y=yPos(v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);}); ctx.stroke();
+  entries.forEach((e,i)=>{ const x=pad+step*i; ctx.fillStyle='#4f2d38'; ctx.font='11px sans-serif'; ctx.fillText(e.startDate.slice(5), x-16, h-10); });
+}
+function requestBrowserNotifications(){
+  if(!('Notification' in window)){ alert('Ο browser δεν υποστηρίζει notifications.'); return; }
+  Notification.requestPermission().then(permission=>{
+    if(permission==='granted'){ appData.settings.browserNotif=true; saveData(); $('#browserNotif').checked=true; renderHome(); alert('Οι browser notifications ενεργοποιήθηκαν.'); }
+    else alert('Δεν δόθηκε άδεια για notifications.');
+  });
+}
+function escapeHtml(str){ return (str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function renderAll(){ sortEntries(); renderHome(); renderCalendar(); renderInsightsScreen(); renderHistory(); }
+
+$('#saveBtn').addEventListener('click', saveEntry);
+$('#clearBtn').addEventListener('click', ()=>clearForm());
+$('#prevBtn').addEventListener('click', ()=>{ currentMonth=new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1); renderCalendar(); });
+$('#nextBtn').addEventListener('click', ()=>{ currentMonth=new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1); renderCalendar(); });
+$$('.nav-btn').forEach(btn => btn.addEventListener('click', ()=>openScreen(btn.dataset.screen)));
+$('#closeDayModal').addEventListener('click', closeDayModal);
+$('#saveDayBtn').addEventListener('click', saveDayNote);
+$('#clearDayBtn').addEventListener('click', clearDayNote);
+$$('.tagbtn').forEach(btn=>btn.addEventListener('click', ()=>{ selectedDaySymbol=btn.dataset.symbol; updateSymbolButtons(); }));
+$('#dayModal').addEventListener('click', e=>{ if(e.target.id==='dayModal') closeDayModal(); });
+
+$('#reminderPeriod').addEventListener('change', e=>{ appData.settings.reminderPeriod=e.target.checked; saveData(); renderHome(); });
+$('#reminderOvulation').addEventListener('change', e=>{ appData.settings.reminderOvulation=e.target.checked; saveData(); renderHome(); });
+$('#reminderLog').addEventListener('change', e=>{ appData.settings.reminderLog=e.target.checked; saveData(); renderHome(); });
+$('#browserNotif').addEventListener('change', e=>{ appData.settings.browserNotif=e.target.checked; saveData(); renderHome(); });
+$('#requestNotifBtn').addEventListener('click', requestBrowserNotifications);
+
+const today=new Date(); $('#startDate').value=ymd(today); renderAll();
+</script>
+</body>
+</html>
