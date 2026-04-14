@@ -494,6 +494,21 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
 </script>
+<script>
+document.getElementById('saveBtn').addEventListener('click', async () => {
 
+  await supabase.from('cycles').insert([
+    {
+      start_date: document.getElementById('startDate').value,
+      cycle_length: Number(document.getElementById('cycleLength').value),
+      period_length: Number(document.getElementById('periodLength').value),
+      note: document.getElementById('note').value
+    }
+  ])
+
+  alert("Αποθηκεύτηκε στη βάση 💗")
+
+})
+</script>
 </body>
 </html>
