@@ -401,12 +401,53 @@ function deleteEntry(id){
   if(!confirm('Να διαγραφεί αυτός ο κύκλος;')) return;
   appData.entries=appData.entries.filter(e=>e.id!==id); saveData(); if(editingId===id) editingId=null; renderAll();
 }
-function saveEntry(){
-  const startDate=$('#startDate').value, cycleLength=Number($('#cycleLength').value||28), periodLength=Number($('#periodLength').value||5), note=$('#note').value.trim();
-  if(!startDate){ alert('Βάλε την 1η μέρα περιόδου.'); return; }
-  if(editingId){ const entry=appData.entries.find(e=>e.id===editingId); if(entry){ entry.startDate=startDate; entry.cycleLength=cycleLength; entry.periodLength=periodLength; entry.note=note; } editingId=null; }
-  else { appData.entries.push({id:uid(), startDate, cycleLength, periodLength, note, dayNotes:[]}); }
-  saveData(); currentMonth=new Date(startDate+'T00:00:00'); clearForm(false); renderAll(); alert('Αποθηκεύτηκε.');
+  
+  async function saveEntry() {
+  const startDate = $('#startDate').value,
+        cycleLength = Number($('#cycleLength').value || 28),
+        periodLength = Number($('#periodLength').value || 5),
+        note = $('#note').value.trim();
+
+  if(!startDate){
+    alert('Βάλε την 1η μέρα περιόδου.');
+    return;
+  }
+
+  await supabase.from('cycles').insert([
+    {
+      start_date: document.getElementById('startDate').value,
+      cycle_length: Number(document.getElementById('cycleLength').value),
+      period_length: Number(document.getElementById('periodLength').value),
+      note: document.getElementById('note').value
+    }
+  ]);
+
+  if(editingId){
+    const entry = appData.entries.find(e => e.id === editingId);
+    if(entry){
+      entry.startDate = startDate;
+      entry.cycleLength = cycleLength;
+      entry.periodLength = periodLength;
+      entry.note = note;
+    }
+    editingId = null;
+  } else {
+    appData.entries.push({
+      id: uid(),
+      startDate,
+      cycleLength,
+      periodLength,
+      note,
+      dayNotes: []
+    });
+  }
+
+  saveData();
+  currentMonth = new Date(startDate + 'T00:00:00');
+  clearForm(false);
+  renderAll();
+  alert('Αποθηκεύτηκε.');
+}
 }
 function clearForm(resetEdit=true){ $('#startDate').value=''; $('#cycleLength').value=28; $('#periodLength').value=5; $('#note').value=''; if(resetEdit) editingId=null; }
 function openScreen(name){ $$('.screen').forEach(s=>s.classList.remove('active')); $('#screen-'+name).classList.add('active'); $$('.nav-btn').forEach(b=>b.classList.remove('active')); document.querySelector(`.nav-btn[data-screen="${name}"]`).classList.add('active'); }
