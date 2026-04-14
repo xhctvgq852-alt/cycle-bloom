@@ -241,19 +241,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
-let currentScreen = "home";
-
-function showScreen(name) {
-  $$(".screen").forEach(el => el.classList.remove("active"));
-  const screen = document.getElementById(`screen-${name}`);
-  if (screen) screen.classList.add("active");
-
-  $$(".nav-btn").forEach(btn => btn.classList.remove("active"));
-  const activeBtn = document.querySelector(`.nav-btn[data-screen="${name}"]`);
-  if (activeBtn) activeBtn.classList.add("active");
-
-  currentScreen = name;
-}
+let entries = [];
+let currentMonth = new Date();
+let editingId = null;
+let selectedDay = null;
+let selectedDaySymbol = "";
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -262,12 +254,6 @@ function pad(n) {
 function toYMD(date) {
   const d = new Date(date);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function addDays(dateStr, days) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return toYMD(d);
 }
 
 function fmt(dateStr) {
@@ -279,10 +265,105 @@ function fmt(dateStr) {
   });
 }
 
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return toYMD(d);
+}
+
 function diffDays(fromStr, toStr) {
   const a = new Date(fromStr + "T00:00:00");
   const b = new Date(toStr + "T00:00:00");
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function monthTitle(d) {
+  return d.toLocaleDateString("el-GR", { month: "long", year: "numeric" });
+}
+
+function escapeHtml(str) {
+  return (str || "").replace(/[&<>"']/g, m => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
+}
+
+function sortEntries() {
+  entries.sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+function lastEntry() {
+  sortEntries();
+  return entries.length ? entries[entries.length - 1] : null;
+}
+
+function avg(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+}
+
+function inferredCycleLengths() {
+  sortEntries();
+  const diffs = [];
+  for (let i = 1; i < entries.length; i++) {
+    const d = diffDays(entries[i - 1].startDate, entries[i].startDate);
+    if (d > 0) diffs.push(d);
+  }
+  return diffs;
+}
+
+function smartCycleLength() {
+  const inferred = inferredCycleLengths();
+  const explicit = entries.map(e => Number(e.cycleLength || 0)).filter(Boolean);
+  const source = inferred.length ? inferred.slice(-6) : explicit.slice(-6);
+  const value = avg(source);
+  return value ? Math.round(value) : null;
+}
+
+function confidenceLabel() {
+  const inferred = inferredCycleLengths();
+  const n = inferred.length || entries.length;
+  if (n >= 6) return "Υψηλή";
+  if (n >= 3) return "Μέτρια";
+  if (n >= 1) return "Βασική";
+  return "Χαμηλή";
+}
+
+function cycleMeta(entry) {
+  if (!entry) return null;
+  const smartLen = smartCycleLength() || Number(entry.cycleLength || 28);
+  const cycleLen = entries.length >= 2 ? smartLen : Number(entry.cycleLength || 28);
+  const ovulation = addDays(entry.startDate, cycleLen - 14);
+  const fertileStart = addDays(ovulation, -5);
+  const fertileEnd = addDays(ovulation, 1);
+  const nextPeriod = addDays(entry.startDate, cycleLen);
+  return { ovulation, fertileStart, fertileEnd, nextPeriod, cycleLen };
+}
+
+function getStats() {
+  const explicit = entries.map(e => Number(e.cycleLength || 0)).filter(Boolean);
+  const inferred = inferredCycleLengths();
+  const cycles = inferred.length ? inferred : explicit;
+  const periods = entries.map(e => Number(e.periodLength || 0)).filter(Boolean);
+
+  const avgCycle = avg(cycles);
+  const avgPeriod = avg(periods);
+
+  let stability = "—";
+  if (cycles.length >= 2) {
+    const spread = Math.max(...cycles) - Math.min(...cycles);
+    stability = spread <= 2 ? "Πολύ σταθερός" : spread <= 4 ? "Μέτρια σταθερός" : "Μεταβαλλόμενος";
+  }
+
+  let trend = "—";
+  if (cycles.length >= 3) {
+    const recent = avg(cycles.slice(-3));
+    trend = recent > avgCycle + 1 ? "Μεγαλώνει" : recent < avgCycle - 1 ? "Μικραίνει" : "Σταθερός";
+  }
+
+  return { avgCycle, avgPeriod, stability, trend };
 }
 
 function getFormData() {
@@ -292,6 +373,47 @@ function getFormData() {
     periodLength: Number($("#periodLength")?.value || 5),
     note: $("#note")?.value?.trim() || ""
   };
+}
+
+function clearForm(resetEdit = true) {
+  if ($("#startDate")) $("#startDate").value = "";
+  if ($("#cycleLength")) $("#cycleLength").value = 28;
+  if ($("#periodLength")) $("#periodLength").value = 5;
+  if ($("#note")) $("#note").value = "";
+  if (resetEdit) editingId = null;
+}
+
+function showScreen(name) {
+  $$(".screen").forEach(el => el.classList.remove("active"));
+  const screen = document.getElementById(`screen-${name}`);
+  if (screen) screen.classList.add("active");
+
+  $$(".nav-btn").forEach(btn => btn.classList.remove("active"));
+  const activeBtn = document.querySelector(`.nav-btn[data-screen="${name}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+}
+
+async function loadEntriesFromSupabase() {
+  const { data, error } = await supabaseClient
+    .from("cycles")
+    .select("*")
+    .order("start_date", { ascending: true });
+
+  if (error) {
+    alert("Σφάλμα φόρτωσης: " + error.message);
+    return;
+  }
+
+  entries = (data || []).map(row => ({
+    id: row.id,
+    startDate: row.start_date,
+    cycleLength: row.cycle_length,
+    periodLength: row.period_length,
+    note: row.note || "",
+    userId: row.user_id
+  }));
+
+  sortEntries();
 }
 
 async function saveEntry() {
@@ -317,74 +439,324 @@ async function saveEntry() {
     return;
   }
 
-  localStorage.setItem("cycleBloom_lastEntry", JSON.stringify({
-    startDate,
-    cycleLength,
-    periodLength,
-    note
-  }));
-
-  renderFromLastEntry();
+  await loadEntriesFromSupabase();
+  currentMonth = new Date(startDate + "T00:00:00");
+  renderAll();
   alert("Αποθηκεύτηκε.");
 }
 
-function clearForm() {
-  if ($("#startDate")) $("#startDate").value = "";
-  if ($("#cycleLength")) $("#cycleLength").value = 28;
-  if ($("#periodLength")) $("#periodLength").value = 5;
-  if ($("#note")) $("#note").value = "";
-}
+function renderHome() {
+  const entry = lastEntry();
 
-function renderFromLastEntry() {
-  const raw = localStorage.getItem("cycleBloom_lastEntry");
-  if (!raw) return;
+  if (!entry) {
+    if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = "—";
+    if ($("#countdownText")) $("#countdownText").textContent = "—";
+    if ($("#ovulationText")) $("#ovulationText").textContent = "—";
+    if ($("#fertileText")) $("#fertileText").textContent = "—";
+    if ($("#cycleDayText")) $("#cycleDayText").textContent = "—";
+    if ($("#confidenceText")) $("#confidenceText").textContent = "—";
+    if ($("#flagText")) $("#flagText").textContent = "Δεν υπάρχουν ακόμη flags";
+    if ($("#trendBadges")) $("#trendBadges").innerHTML = "";
+    return;
+  }
 
-  const entry = JSON.parse(raw);
-  const nextPeriod = addDays(entry.startDate, entry.cycleLength);
-  const ovulation = addDays(entry.startDate, entry.cycleLength - 14);
-  const fertileStart = addDays(ovulation, -5);
-  const fertileEnd = addDays(ovulation, 1);
+  const meta = cycleMeta(entry);
+  if (!meta) return;
 
-  if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = fmt(nextPeriod);
-  if ($("#ovulationText")) $("#ovulationText").textContent = fmt(ovulation);
-  if ($("#fertileText")) $("#fertileText").textContent = `${fmt(fertileStart)} – ${fmt(fertileEnd)}`;
+  if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = fmt(meta.nextPeriod);
+  if ($("#ovulationText")) $("#ovulationText").textContent = fmt(meta.ovulation);
+  if ($("#fertileText")) $("#fertileText").textContent = `${fmt(meta.fertileStart)} – ${fmt(meta.fertileEnd)}`;
 
   const today = toYMD(new Date());
-  const cd = diffDays(entry.startDate, today) + 1;
-  if ($("#cycleDayText")) $("#cycleDayText").textContent = cd > 0 ? `Ημέρα ${cd}` : "—";
+  const cycleDay = diffDays(entry.startDate, today) + 1;
+  if ($("#cycleDayText")) $("#cycleDayText").textContent = cycleDay > 0 ? `Ημέρα ${cycleDay}` : "—";
 
-  const dd = diffDays(today, nextPeriod);
+  const dd = diffDays(today, meta.nextPeriod);
   let countdown = "—";
   if (dd > 1) countdown = `Σε περίπου ${dd} μέρες`;
   else if (dd === 1) countdown = "Αύριο";
   else if (dd === 0) countdown = "Σήμερα";
   else countdown = `Έχουν περάσει ${Math.abs(dd)} μέρες`;
-
   if ($("#countdownText")) $("#countdownText").textContent = countdown;
-  if ($("#confidenceText")) $("#confidenceText").textContent = "Βασική";
+
+  if ($("#confidenceText")) $("#confidenceText").textContent = confidenceLabel();
   if ($("#flagText")) {
     $("#flagText").textContent =
-      entry.cycleLength < 28 || entry.cycleLength > 30
+      meta.cycleLen < 28 || meta.cycleLen > 30
         ? "Κύκλος εκτός συνηθισμένου εύρους 28–30"
         : "Όλα εντός συνηθισμένου εύρους";
   }
+
+  if ($("#trendBadges")) {
+    const stats = getStats();
+    const badges = [];
+    if (stats.stability !== "—") badges.push(`<span class="badge trend">${stats.stability}</span>`);
+    if (stats.trend !== "—") badges.push(`<span class="badge trend">Τάση: ${stats.trend}</span>`);
+    if (confidenceLabel() !== "Χαμηλή") badges.push(`<span class="badge report">Confidence: ${confidenceLabel()}</span>`);
+    $("#trendBadges").innerHTML = badges.join("");
+  }
+
+  renderReminders(entry, meta);
+}
+
+function renderCalendar() {
+  if (!$("#calendarTitle") || !$("#calendarGrid")) return;
+
+  $("#calendarTitle").textContent = monthTitle(currentMonth);
+  const grid = $("#calendarGrid");
+  grid.innerHTML = "";
+
+  const y = currentMonth.getFullYear();
+  const m = currentMonth.getMonth();
+  const first = new Date(y, m, 1);
+  const offset = (first.getDay() + 6) % 7;
+
+  for (let i = 0; i < offset; i++) {
+    const empty = document.createElement("div");
+    empty.className = "day empty";
+    grid.appendChild(empty);
+  }
+
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const entry = lastEntry();
+  let meta = null;
+  let periodEnd = null;
+
+  if (entry) {
+    meta = cycleMeta(entry);
+    periodEnd = addDays(entry.startDate, Number(entry.periodLength || 5) - 1);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = toYMD(new Date(y, m, day));
+    const cell = document.createElement("div");
+    cell.className = "day";
+    cell.innerHTML = `<div class="num">${day}</div>`;
+
+    if (ds === toYMD(new Date())) cell.classList.add("today");
+
+    if (entry && meta) {
+      if (ds === meta.nextPeriod) {
+        cell.classList.add("nextperiod");
+        cell.innerHTML += `<div class="mini">Επ. περ.</div>`;
+      } else if (ds >= entry.startDate && ds <= periodEnd) {
+        cell.classList.add("period");
+        cell.innerHTML += `<div class="mini">Περ.</div>`;
+      } else if (ds === meta.ovulation) {
+        cell.classList.add("ovulation");
+        cell.innerHTML += `<div class="mini">Ωορρ.</div>`;
+      } else if (ds >= meta.fertileStart && ds <= meta.fertileEnd) {
+        cell.classList.add("fertile");
+        cell.innerHTML += `<div class="mini">Γόνιμη</div>`;
+      }
+    }
+
+    cell.addEventListener("click", () => {
+      selectedDay = ds;
+      if ($("#dayModal")) $("#dayModal").classList.add("open");
+      if ($("#dayModalTitle")) $("#dayModalTitle").textContent = "Σημείωση ημέρας";
+      if ($("#dayModalSub")) $("#dayModalSub").textContent = fmt(ds);
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+function renderInsightsScreen() {
+  const stats = getStats();
+
+  if ($("#avgCycle")) $("#avgCycle").textContent = stats.avgCycle ? Math.round(stats.avgCycle) + " ημέρες" : "—";
+  if ($("#avgPeriod")) $("#avgPeriod").textContent = stats.avgPeriod ? Math.round(stats.avgPeriod) + " ημέρες" : "—";
+  if ($("#stability")) $("#stability").textContent = stats.stability;
+  if ($("#trend")) $("#trend").textContent = stats.trend;
+
+  if ($("#insightsList")) {
+    const entry = lastEntry();
+    if (!entry) {
+      $("#insightsList").innerHTML = '<div class="insight"><strong>Ξεκίνα με μια καταχώρηση</strong><div class="small muted">Μόλις αποθηκεύσεις κύκλους, θα δεις παρατηρήσεις και μοτίβα.</div></div>';
+      return;
+    }
+
+    const meta = cycleMeta(entry);
+    $("#insightsList").innerHTML = `
+      <div class="insight"><strong>Smart prediction</strong><div class="small">Η επόμενη περίοδος εκτιμάται για ${fmt(meta.nextPeriod)} με confidence ${confidenceLabel().toLowerCase()}.</div></div>
+      <div class="insight"><strong>Μέσος κύκλος</strong><div class="small">${stats.avgCycle ? `Ο μέσος κύκλος σου είναι περίπου ${Math.round(stats.avgCycle)} ημέρες.` : "Δεν υπάρχουν αρκετά δεδομένα ακόμη."}</div></div>
+      <div class="insight"><strong>Σταθερότητα</strong><div class="small">Ο κύκλος σου φαίνεται: ${stats.stability.toLowerCase()}.</div></div>
+      <div class="insight"><strong>Επόμενη ωορρηξία</strong><div class="small">Πιθανή ημερομηνία ωορρηξίας: ${fmt(meta.ovulation)}.</div></div>
+    `;
+  }
+}
+
+function renderHistory() {
+  if (!$("#historyList")) return;
+
+  const sorted = [...entries].sort((a, b) => b.startDate.localeCompare(a.startDate));
+
+  if (!sorted.length) {
+    $("#historyList").innerHTML = '<div class="empty-state">Δεν υπάρχουν αποθηκευμένοι μήνες ακόμη.</div>';
+    return;
+  }
+
+  $("#historyList").innerHTML = sorted.map(entry => {
+    const meta = cycleMeta(entry);
+    return `
+      <div class="history-item">
+        <strong>${fmt(entry.startDate)}</strong>
+        <div class="small muted">Κύκλος ${entry.cycleLength} ημέρες · Περίοδος ${entry.periodLength} ημέρες</div>
+        <div class="small" style="margin-top:6px">Smart πρόβλεψη επόμενης περιόδου: <strong>${fmt(meta.nextPeriod)}</strong></div>
+        ${entry.note ? `<div class="small" style="margin-top:6px">📝 ${escapeHtml(entry.note)}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderReports() {
+  if ($("#reportCards")) {
+    const sorted = [...entries].sort((a, b) => b.startDate.localeCompare(a.startDate));
+    if (!sorted.length) {
+      $("#reportCards").innerHTML = '<div class="empty-state">Δεν υπάρχουν αρκετά δεδομένα για report cards.</div>';
+    } else {
+      $("#reportCards").innerHTML = sorted.slice(0, 6).map(entry => {
+        const meta = cycleMeta(entry);
+        return `
+          <div class="report-card">
+            <strong>${fmt(entry.startDate)}</strong>
+            <div class="small">Διάρκεια κύκλου: ${entry.cycleLength} ημέρες</div>
+            <div class="small">Διάρκεια περιόδου: ${entry.periodLength} ημέρες</div>
+            <div class="small">Smart επόμενη περίοδος: ${fmt(meta.nextPeriod)}</div>
+            <div class="small">Confidence: ${confidenceLabel()}</div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
+
+  const canvas = $("#cycleChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const recent = entries.slice(-8);
+  if (!recent.length) {
+    ctx.fillStyle = "#94727d";
+    ctx.font = "16px sans-serif";
+    ctx.fillText("Δεν υπάρχουν αρκετά δεδομένα για report.", 20, 40);
+    return;
+  }
+
+  const vals = recent.map(e => Number(e.cycleLength || 0));
+  const smart = recent.map(() => smartCycleLength() || 0);
+  const maxY = Math.max(35, ...vals, ...smart);
+  const padSize = 34;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.strokeStyle = "#f0dfe5";
+  for (let i = 0; i < 4; i++) {
+    const y = padSize + ((h - padSize * 2) / 3) * i;
+    ctx.beginPath();
+    ctx.moveTo(padSize, y);
+    ctx.lineTo(w - padSize, y);
+    ctx.stroke();
+  }
+
+  const step = recent.length > 1 ? (w - padSize * 2) / (recent.length - 1) : 0;
+  const yPos = v => h - padSize - (v / maxY) * (h - padSize * 2);
+
+  ctx.strokeStyle = "#e88faa";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  vals.forEach((v, i) => {
+    const x = padSize + step * i;
+    const y = yPos(v);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle = "#8f89ea";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  smart.forEach((v, i) => {
+    const x = padSize + step * i;
+    const y = yPos(v);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  recent.forEach((e, i) => {
+    const x = padSize + step * i;
+    ctx.fillStyle = "#4f2d38";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(e.startDate.slice(5), x - 16, h - 10);
+  });
+}
+
+function renderReminders(entry, meta) {
+  if (!$("#remindersToday")) return;
+
+  if (!entry) {
+    $("#remindersToday").innerHTML = '<div class="empty-state">Δεν υπάρχουν reminders ακόμη.</div>';
+    return;
+  }
+
+  const today = toYMD(new Date());
+  const items = [];
+
+  if (diffDays(today, meta.nextPeriod) === 2) items.push(["Περίοδος σύντομα", "Η επόμενη περίοδος εκτιμάται σε 2 μέρες."]);
+  if (diffDays(today, meta.nextPeriod) === 0) items.push(["Ημέρα περιόδου", "Σύμφωνα με την πρόβλεψη, η περίοδος είναι σήμερα."]);
+  if (diffDays(today, meta.ovulation) === 0) items.push(["Ωορρηξία σήμερα", "Σήμερα είναι η πιθανή ημέρα ωορρηξίας."]);
+
+  if (!items.length) {
+    $("#remindersToday").innerHTML = '<div class="empty-state">Καμία ενεργή υπενθύμιση για σήμερα.</div>';
+    return;
+  }
+
+  $("#remindersToday").innerHTML = items.map(([title, body]) => `
+    <div class="reminder-item">
+      <strong>${title}</strong>
+      <div class="small">${body}</div>
+    </div>
+  `).join("");
+}
+
+function renderAll() {
+  sortEntries();
+  renderHome();
+  renderCalendar();
+  renderInsightsScreen();
+  renderHistory();
+  renderReports();
 }
 
 function bindEvents() {
   $("#saveBtn")?.addEventListener("click", saveEntry);
-  $("#clearBtn")?.addEventListener("click", clearForm);
+  $("#clearBtn")?.addEventListener("click", () => clearForm());
 
   $$(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => showScreen(btn.dataset.screen));
   });
 
-  $("#prevBtn")?.addEventListener("click", () => {});
-  $("#nextBtn")?.addEventListener("click", () => {});
-  $("#closeDayModal")?.addEventListener("click", () => {
-    const modal = $("#dayModal");
-    if (modal) modal.classList.remove("open");
+  $("#prevBtn")?.addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    renderCalendar();
   });
-  $("#saveDayBtn")?.addEventListener("click", () => alert("Η αποθήκευση day note θα προστεθεί μετά."));
+
+  $("#nextBtn")?.addEventListener("click", () => {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    renderCalendar();
+  });
+
+  $("#closeDayModal")?.addEventListener("click", () => {
+    if ($("#dayModal")) $("#dayModal").classList.remove("open");
+  });
+
+  $("#saveDayBtn")?.addEventListener("click", () => {
+    alert("Η αποθήκευση day note θα προστεθεί μετά.");
+  });
+
   $("#clearDayBtn")?.addEventListener("click", () => {
     if ($("#dayNote")) $("#dayNote").value = "";
   });
@@ -394,12 +766,18 @@ function bindEvents() {
       alert("Ο browser δεν υποστηρίζει notifications.");
       return;
     }
+
     const permission = await Notification.requestPermission();
-    alert(permission === "granted" ? "Οι ειδοποιήσεις ενεργοποιήθηκαν." : "Δεν δόθηκε άδεια.");
+
+    if (permission === "granted") {
+      alert("Οι ειδοποιήσεις ενεργοποιήθηκαν.");
+    } else {
+      alert("Δεν δόθηκε άδεια.");
+    }
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   showScreen("home");
 
@@ -407,7 +785,8 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#startDate").value = toYMD(new Date());
   }
 
-  renderFromLastEntry();
+  await loadEntriesFromSupabase();
+  renderAll();
 });
 </script>
 </body>
