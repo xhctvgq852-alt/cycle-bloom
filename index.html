@@ -12,6 +12,7 @@
   --accent:#e88faa; --accent-soft:#fff0f5; --accent-dark:#cf6787;
   --period:#ffb1c5; --fertile:#b9ebc3; --ovulation:#ffe170; --safe:#f3edf0;
   --nextperiod:#c8c5ff; --nextperiod-line:#8f89ea; --report:#d7f2ff; --trend:#fcebd6;
+  --past-nextperiod:#ffd6a5; --past-ovulation:#d8b4fe;
   --shadow:0 10px 28px rgba(140,90,106,.10);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -53,6 +54,8 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .day.fertile{background:var(--fertile);border-color:#84cf93}
 .day.ovulation{background:var(--ovulation);border-color:#d9b51f}
 .day.nextperiod{background:var(--nextperiod);border-color:var(--nextperiod-line)}
+.day.past-nextperiod{background:var(--past-nextperiod);border-color:#d99b45}
+.day.past-ovulation{background:var(--past-ovulation);border-color:#9b6bd3}
 .day.today{outline:3px solid var(--accent)}
 .day.empty{visibility:hidden;cursor:default}
 .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
@@ -171,6 +174,8 @@ canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:16p
         <span><i class="dot" style="background:var(--fertile)"></i> Γόνιμες</span>
         <span><i class="dot" style="background:var(--ovulation)"></i> Ωορρηξία</span>
         <span><i class="dot" style="background:var(--nextperiod)"></i> Επόμενη περίοδος</span>
+        <span><i class="dot" style="background:var(--past-nextperiod)"></i> Παλ. πρόβλεψη περιόδου</span>
+        <span><i class="dot" style="background:var(--past-ovulation)"></i> Παλ. ωορρηξία</span>
         <span><i class="dot" style="background:var(--safe)"></i> Safe</span>
       </div>
     </div>
@@ -662,8 +667,7 @@ function renderCalendar() {
 
     if (ds === toYMD(new Date())) cell.classList.add("today");
 
-    // 1. Σημείωσε όλες τις αποθηκευμένες περιόδους
-    let matchedPeriod = false;
+    let matched = false;
 
     for (const entry of entries) {
       const periodEnd = addDays(entry.startDate, Number(entry.periodLength || 5) - 1);
@@ -671,13 +675,35 @@ function renderCalendar() {
       if (ds >= entry.startDate && ds <= periodEnd) {
         cell.classList.add("period");
         cell.innerHTML += `<div class="mini">Περ.</div>`;
-        matchedPeriod = true;
+        matched = true;
         break;
       }
     }
 
-    // 2. Μόνο για τον πιο πρόσφατο κύκλο δείξε πρόβλεψη/ωορρηξία/γόνιμες
-    if (!matchedPeriod && latestEntry && latestMeta) {
+    if (!matched) {
+      for (const entry of entries) {
+        if (latestEntry && entry.id === latestEntry.id) continue;
+
+        const meta = cycleMeta(entry);
+        if (!meta) continue;
+
+        if (ds === meta.nextPeriod) {
+          cell.classList.add("past-nextperiod");
+          cell.innerHTML += `<div class="mini">Παλ. επ.</div>`;
+          matched = true;
+          break;
+        }
+
+        if (ds === meta.ovulation) {
+          cell.classList.add("past-ovulation");
+          cell.innerHTML += `<div class="mini">Παλ. ωορ.</div>`;
+          matched = true;
+          break;
+        }
+      }
+    }
+
+    if (!matched && latestEntry && latestMeta) {
       if (ds === latestMeta.nextPeriod) {
         cell.classList.add("nextperiod");
         cell.innerHTML += `<div class="mini">Επ. περ.</div>`;
@@ -714,7 +740,6 @@ function renderCalendar() {
     grid.appendChild(cell);
   }
 }
-
 function renderInsightsScreen() {
   const stats = getStats();
 
