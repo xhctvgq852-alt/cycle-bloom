@@ -58,6 +58,18 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .day.past-ovulation{background:var(--past-ovulation);border-color:#9b6bd3}
 .day.today{outline:3px solid var(--accent)}
 .day.empty{visibility:hidden;cursor:default}
+.day.period.predicted-next::after{
+  content:"";
+  position:absolute;
+  bottom:7px;
+  left:50%;
+  transform:translateX(-50%);
+  width:13px;
+  height:13px;
+  border:2px solid var(--nextperiod-line);
+  border-radius:50%;
+  background:transparent;
+}
 .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .legend span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.84rem}
 .dot{width:14px;height:14px;border-radius:7px;border:1px solid rgba(0,0,0,.05);display:inline-block}
@@ -673,11 +685,18 @@ function renderCalendar() {
       const periodEnd = addDays(entry.startDate, Number(entry.periodLength || 5) - 1);
 
       if (ds >= entry.startDate && ds <= periodEnd) {
-        cell.classList.add("period");
-        cell.innerHTML += `<div class="mini">Περ.</div>`;
-        matched = true;
-        break;
-      }
+  const isPredictedNext = latestMeta && ds === latestMeta.nextPeriod;
+
+  cell.classList.add("period");
+
+  if (isPredictedNext) {
+    cell.classList.add("predicted-next");
+  }
+
+  cell.innerHTML += `<div class="mini">Περ.</div>`;
+  matched = true;
+  break;
+}
     }
 
     if (!matched) {
