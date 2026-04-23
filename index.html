@@ -278,8 +278,10 @@ let editingId = null;
 let selectedDay = null;
 let selectedDaySymbol = "";
 let dayNotes = [];
-  
-let isLoading = false;  
+let isLoading = false;
+
+const LOCAL_CYCLES_KEY = "cycleBloomCachedEntries";
+const LOCAL_DAYNOTES_KEY = "cycleBloomCachedDayNotes";
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -426,9 +428,30 @@ function showScreen(name) {
   const activeBtn = document.querySelector(`.nav-btn[data-screen="${name}"]`);
   if (activeBtn) activeBtn.classList.add("active");
 }
+
 async function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+function saveLocalCache() {
+  localStorage.setItem(LOCAL_CYCLES_KEY, JSON.stringify(entries));
+  localStorage.setItem(LOCAL_DAYNOTES_KEY, JSON.stringify(dayNotes));
+}
+
+function loadLocalCache() {
+  try {
+    const cachedEntries = JSON.parse(localStorage.getItem(LOCAL_CYCLES_KEY) || "[]");
+    const cachedDayNotes = JSON.parse(localStorage.getItem(LOCAL_DAYNOTES_KEY) || "[]");
+
+    entries = Array.isArray(cachedEntries) ? cachedEntries : [];
+    dayNotes = Array.isArray(cachedDayNotes) ? cachedDayNotes : [];
+    sortEntries();
+  } catch (e) {
+    entries = [];
+    dayNotes = [];
+  }
+}
+
 async function loadEntriesFromSupabase(retries = 3) {
   isLoading = true;
 
@@ -449,12 +472,13 @@ async function loadEntriesFromSupabase(retries = 3) {
       }));
 
       sortEntries();
+      saveLocalCache();
       isLoading = false;
       return true;
     }
 
     if (attempt < retries) {
-      await new Promise(r => setTimeout(r, 1500));
+      await wait(1500);
     } else {
       console.error("Supabase δεν απάντησε:", error);
     }
@@ -462,6 +486,39 @@ async function loadEntriesFromSupabase(retries = 3) {
 
   isLoading = false;
   return false;
+}
+
+async function loadDayNotesFromSupabase(retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const { data, error } = await supabaseClient
+      .from("day_notes")
+      .select("*")
+      .order("note_date", { ascending: true });
+
+    if (!error) {
+      dayNotes = (data || []).map(row => ({
+        id: row.id,
+        date: row.note_date,
+        symbol: row.symbol || "",
+        note: row.note || ""
+      }));
+
+      saveLocalCache();
+      return true;
+    }
+
+    if (attempt < retries) {
+      await wait(1500);
+    } else {
+      console.error("day_notes δεν φόρτωσαν:", error);
+    }
+  }
+
+  return false;
+}
+
+function getDayNote(dateStr) {
+  return dayNotes.find(n => n.date === dateStr) || null;
 }
 
 async function saveEntry() {
@@ -504,54 +561,24 @@ async function saveEntry() {
 
   editingId = null;
   await loadEntriesFromSupabase();
+  saveLocalCache();
   currentMonth = new Date(startDate + "T00:00:00");
   renderAll();
   clearForm(false);
   alert("Αποθηκεύτηκε.");
 }
-function getDayNote(dateStr) {
-  return dayNotes.find(n => n.date === dateStr) || null;
-}
-
-async function saveEntry() {
-  const { startDate, cycleLength, periodLength, note } = getFormData();
-
-  if (!startDate) {
-    alert("Βάλε την 1η μέρα περιόδου.");
-    return;
-  }
-
-  const payload = {
-    user_id: null,
-    start_date: startDate,
-    cycle_length: cycleLength,
-    period_length: periodLength,
-    note: note
-  };
-
-  const { error } = await supabaseClient.from("cycles").insert([payload]);
-
-  if (error) {
-    alert("Σφάλμα αποθήκευσης: " + error.message);
-    return;
-  }
-
-  await loadEntriesFromSupabase();
-  currentMonth = new Date(startDate + "T00:00:00");
-  renderAll();
-  alert("Αποθηκεύτηκε.");
-}
 
 function renderHome() {
   if (isLoading) {
-  if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = "Φόρτωση...";
-  if ($("#countdownText")) $("#countdownText").textContent = "Περιμένω τη βάση να ξυπνήσει";
-  if ($("#ovulationText")) $("#ovulationText").textContent = "—";
-  if ($("#fertileText")) $("#fertileText").textContent = "—";
-  if ($("#cycleDayText")) $("#cycleDayText").textContent = "—";
-  if ($("#confidenceText")) $("#confidenceText").textContent = "—";
-  return;
-}
+    if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = "Φόρτωση...";
+    if ($("#countdownText")) $("#countdownText").textContent = "Περιμένω τη βάση να ξυπνήσει";
+    if ($("#ovulationText")) $("#ovulationText").textContent = "—";
+    if ($("#fertileText")) $("#fertileText").textContent = "—";
+    if ($("#cycleDayText")) $("#cycleDayText").textContent = "—";
+    if ($("#confidenceText")) $("#confidenceText").textContent = "—";
+    return;
+  }
+
   const entry = lastEntry();
 
   if (!entry) {
@@ -741,6 +768,7 @@ function renderHistory() {
     btn.addEventListener("click", () => deleteEntry(btn.dataset.id));
   });
 }
+
 function renderReports() {
   if ($("#reportCards")) {
     const sorted = [...entries].sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -772,7 +800,7 @@ function renderReports() {
   if (!recent.length) {
     ctx.fillStyle = "#94727d";
     ctx.font = "16px sans-serif";
-    ctx.fillText("Δεν υπάρχουν αρκετά δεδομένα για report.", 20, 40);
+    ctx.fillText("Δεν υπάρχουν αρκετά მონაცემები για report.", 20, 40);
     return;
   }
 
@@ -852,6 +880,7 @@ function renderReminders(entry, meta) {
     </div>
   `).join("");
 }
+
 function startEdit(id) {
   const entry = entries.find(e => e.id === id);
   if (!entry) return;
@@ -865,7 +894,8 @@ function startEdit(id) {
 
   showScreen("home");
 }
-  async function deleteEntry(id) {
+
+async function deleteEntry(id) {
   const ok = confirm("Να διαγραφεί αυτός ο κύκλος;");
   if (!ok) return;
 
@@ -880,9 +910,11 @@ function startEdit(id) {
   }
 
   await loadEntriesFromSupabase();
+  saveLocalCache();
   renderAll();
 }
-  function downloadFile(filename, content, mimeType) {
+
+function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -948,6 +980,7 @@ function exportDataAsCsv() {
     "text/csv;charset=utf-8"
   );
 }
+
 function renderAll() {
   sortEntries();
   renderHome();
@@ -1015,6 +1048,7 @@ function bindEvents() {
     }
 
     await loadDayNotesFromSupabase();
+    saveLocalCache();
     renderCalendar();
 
     if ($("#dayModal")) $("#dayModal").classList.remove("open");
@@ -1042,6 +1076,7 @@ function bindEvents() {
     selectedDaySymbol = "";
 
     await loadDayNotesFromSupabase();
+    saveLocalCache();
     renderCalendar();
 
     if ($("#dayModal")) $("#dayModal").classList.remove("open");
@@ -1084,13 +1119,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("#startDate").value = toYMD(new Date());
   }
 
+  loadLocalCache();
   renderAll();
 
   const entriesOk = await loadEntriesFromSupabase();
   await loadDayNotesFromSupabase();
 
   if (!entriesOk) {
-    alert("Η βάση άργησε να ξυπνήσει. Κάνε refresh σε λίγα δευτερόλεπτα.");
+    console.warn("Η βάση άργησε να ξυπνήσει.");
   }
 
   renderAll();
