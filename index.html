@@ -54,7 +54,10 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .day.fertile{background:var(--fertile);border-color:#84cf93}
 .day.ovulation{background:var(--ovulation);border-color:#d9b51f}
 .day.nextperiod{background:var(--nextperiod);border-color:var(--nextperiod-line)}
-.day.past-nextperiod{background:var(--past-nextperiod);border-color:#d99b45}
+.day.past-nextperiod:not(.period){
+  background:var(--past-nextperiod);
+  border-color:#d99b45;
+}
 .day.past-ovulation{background:var(--past-ovulation);border-color:#9b6bd3}
 .day.today{outline:3px solid var(--accent)}
 .day.empty{visibility:hidden;cursor:default}
