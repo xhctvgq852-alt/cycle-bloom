@@ -444,25 +444,51 @@ async function loadEntriesFromSupabase() {
   sortEntries();
 }
 
-async function loadDayNotesFromSupabase() {
-  const { data, error } = await supabaseClient
-    .from("day_notes")
-    .select("*")
-    .order("note_date", { ascending: true });
+async function saveEntry() {
+  const { startDate, cycleLength, periodLength, note } = getFormData();
 
-  if (error) {
-    alert("Σφάλμα φόρτωσης σημειώσεων: " + error.message);
+  if (!startDate) {
+    alert("Βάλε την 1η μέρα περιόδου.");
     return;
   }
 
-  dayNotes = (data || []).map(row => ({
-    id: row.id,
-    date: row.note_date,
-    symbol: row.symbol || "",
-    note: row.note || ""
-  }));
-}
+  const payload = {
+    user_id: null,
+    start_date: startDate,
+    cycle_length: cycleLength,
+    period_length: periodLength,
+    note: note
+  };
 
+  let error = null;
+
+  if (editingId) {
+    const result = await supabaseClient
+      .from("cycles")
+      .update(payload)
+      .eq("id", editingId);
+
+    error = result.error;
+  } else {
+    const result = await supabaseClient
+      .from("cycles")
+      .insert([payload]);
+
+    error = result.error;
+  }
+
+  if (error) {
+    alert("Σφάλμα αποθήκευσης: " + error.message);
+    return;
+  }
+
+  editingId = null;
+  await loadEntriesFromSupabase();
+  currentMonth = new Date(startDate + "T00:00:00");
+  renderAll();
+  clearForm(false);
+  alert("Αποθηκεύτηκε.");
+}
 function getDayNote(dateStr) {
   return dayNotes.find(n => n.date === dateStr) || null;
 }
@@ -670,11 +696,22 @@ function renderHistory() {
         <div class="small muted">Κύκλος ${entry.cycleLength} ημέρες · Περίοδος ${entry.periodLength} ημέρες</div>
         <div class="small" style="margin-top:6px">Smart πρόβλεψη επόμενης περιόδου: <strong>${fmt(meta.nextPeriod)}</strong></div>
         ${entry.note ? `<div class="small" style="margin-top:6px">📝 ${escapeHtml(entry.note)}</div>` : ""}
+        <div class="history-actions">
+          <button class="ghost edit-history-btn" data-id="${entry.id}">Επεξεργασία</button>
+          <button class="danger delete-history-btn" data-id="${entry.id}">Διαγραφή</button>
+        </div>
       </div>
     `;
   }).join("");
-}
 
+  $$(".edit-history-btn").forEach(btn => {
+    btn.addEventListener("click", () => startEdit(btn.dataset.id));
+  });
+
+  $$(".delete-history-btn").forEach(btn => {
+    btn.addEventListener("click", () => deleteEntry(btn.dataset.id));
+  });
+}
 function renderReports() {
   if ($("#reportCards")) {
     const sorted = [...entries].sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -786,7 +823,36 @@ function renderReminders(entry, meta) {
     </div>
   `).join("");
 }
+function startEdit(id) {
+  const entry = entries.find(e => e.id === id);
+  if (!entry) return;
 
+  editingId = id;
+
+  if ($("#startDate")) $("#startDate").value = entry.startDate;
+  if ($("#cycleLength")) $("#cycleLength").value = entry.cycleLength;
+  if ($("#periodLength")) $("#periodLength").value = entry.periodLength;
+  if ($("#note")) $("#note").value = entry.note || "";
+
+  showScreen("home");
+}
+  async function deleteEntry(id) {
+  const ok = confirm("Να διαγραφεί αυτός ο κύκλος;");
+  if (!ok) return;
+
+  const { error } = await supabaseClient
+    .from("cycles")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Σφάλμα διαγραφής: " + error.message);
+    return;
+  }
+
+  await loadEntriesFromSupabase();
+  renderAll();
+}
 function renderAll() {
   sortEntries();
   renderHome();
