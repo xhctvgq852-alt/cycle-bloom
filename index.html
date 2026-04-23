@@ -651,14 +651,8 @@ function renderCalendar() {
   }
 
   const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const entry = lastEntry();
-  let meta = null;
-  let periodEnd = null;
-
-  if (entry) {
-    meta = cycleMeta(entry);
-    periodEnd = addDays(entry.startDate, Number(entry.periodLength || 5) - 1);
-  }
+  const latestEntry = lastEntry();
+  const latestMeta = latestEntry ? cycleMeta(latestEntry) : null;
 
   for (let day = 1; day <= daysInMonth; day++) {
     const ds = toYMD(new Date(y, m, day));
@@ -668,17 +662,29 @@ function renderCalendar() {
 
     if (ds === toYMD(new Date())) cell.classList.add("today");
 
-    if (entry && meta) {
-      if (ds === meta.nextPeriod) {
-        cell.classList.add("nextperiod");
-        cell.innerHTML += `<div class="mini">Επ. περ.</div>`;
-      } else if (ds >= entry.startDate && ds <= periodEnd) {
+    // 1. Σημείωσε όλες τις αποθηκευμένες περιόδους
+    let matchedPeriod = false;
+
+    for (const entry of entries) {
+      const periodEnd = addDays(entry.startDate, Number(entry.periodLength || 5) - 1);
+
+      if (ds >= entry.startDate && ds <= periodEnd) {
         cell.classList.add("period");
         cell.innerHTML += `<div class="mini">Περ.</div>`;
-      } else if (ds === meta.ovulation) {
+        matchedPeriod = true;
+        break;
+      }
+    }
+
+    // 2. Μόνο για τον πιο πρόσφατο κύκλο δείξε πρόβλεψη/ωορρηξία/γόνιμες
+    if (!matchedPeriod && latestEntry && latestMeta) {
+      if (ds === latestMeta.nextPeriod) {
+        cell.classList.add("nextperiod");
+        cell.innerHTML += `<div class="mini">Επ. περ.</div>`;
+      } else if (ds === latestMeta.ovulation) {
         cell.classList.add("ovulation");
         cell.innerHTML += `<div class="mini">Ωορρ.</div>`;
-      } else if (ds >= meta.fertileStart && ds <= meta.fertileEnd) {
+      } else if (ds >= latestMeta.fertileStart && ds <= latestMeta.fertileEnd) {
         cell.classList.add("fertile");
         cell.innerHTML += `<div class="mini">Γόνιμη</div>`;
       }
