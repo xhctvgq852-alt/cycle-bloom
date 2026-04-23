@@ -278,6 +278,8 @@ let editingId = null;
 let selectedDay = null;
 let selectedDaySymbol = "";
 let dayNotes = [];
+  
+let isLoading = false;  
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -424,28 +426,42 @@ function showScreen(name) {
   const activeBtn = document.querySelector(`.nav-btn[data-screen="${name}"]`);
   if (activeBtn) activeBtn.classList.add("active");
 }
+async function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+async function loadEntriesFromSupabase(retries = 3) {
+  isLoading = true;
 
-async function loadEntriesFromSupabase() {
-  const { data, error } = await supabaseClient
-    .from("cycles")
-    .select("*")
-    .order("start_date", { ascending: true });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const { data, error } = await supabaseClient
+      .from("cycles")
+      .select("*")
+      .order("start_date", { ascending: true });
 
-  if (error) {
-    alert("Σφάλμα φόρτωσης: " + error.message);
-    return;
+    if (!error) {
+      entries = (data || []).map(row => ({
+        id: row.id,
+        startDate: row.start_date,
+        cycleLength: row.cycle_length,
+        periodLength: row.period_length,
+        note: row.note || "",
+        userId: row.user_id
+      }));
+
+      sortEntries();
+      isLoading = false;
+      return true;
+    }
+
+    if (attempt < retries) {
+      await new Promise(r => setTimeout(r, 1500));
+    } else {
+      console.error("Supabase δεν απάντησε:", error);
+    }
   }
 
-  entries = (data || []).map(row => ({
-    id: row.id,
-    startDate: row.start_date,
-    cycleLength: row.cycle_length,
-    periodLength: row.period_length,
-    note: row.note || "",
-    userId: row.user_id
-  }));
-
-  sortEntries();
+  isLoading = false;
+  return false;
 }
 
 async function saveEntry() {
@@ -527,6 +543,15 @@ async function saveEntry() {
 }
 
 function renderHome() {
+  if (isLoading) {
+  if ($("#nextPeriodMain")) $("#nextPeriodMain").textContent = "Φόρτωση...";
+  if ($("#countdownText")) $("#countdownText").textContent = "Περιμένω τη βάση να ξυπνήσει";
+  if ($("#ovulationText")) $("#ovulationText").textContent = "—";
+  if ($("#fertileText")) $("#fertileText").textContent = "—";
+  if ($("#cycleDayText")) $("#cycleDayText").textContent = "—";
+  if ($("#confidenceText")) $("#confidenceText").textContent = "—";
+  return;
+}
   const entry = lastEntry();
 
   if (!entry) {
@@ -1022,25 +1047,24 @@ function bindEvents() {
     if ($("#dayModal")) $("#dayModal").classList.remove("open");
   });
 
-    $$(".tagbtn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    selectedDaySymbol = btn.dataset.symbol || "";
+  $$(".tagbtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      selectedDaySymbol = btn.dataset.symbol || "";
 
-    $$(".tagbtn").forEach(b => {
-      b.classList.toggle("active", b.dataset.symbol === selectedDaySymbol);
+      $$(".tagbtn").forEach(b => {
+        b.classList.toggle("active", b.dataset.symbol === selectedDaySymbol);
+      });
     });
   });
-});
 
-// export buttons
-$("#exportJsonBtn")?.addEventListener("click", exportDataAsJson);
-$("#exportCsvBtn")?.addEventListener("click", exportDataAsCsv);
+  $("#exportJsonBtn")?.addEventListener("click", exportDataAsJson);
+  $("#exportCsvBtn")?.addEventListener("click", exportDataAsCsv);
 
-$("#requestNotifBtn")?.addEventListener("click", async () => {
-  if (!("Notification" in window)) {
-    alert("Ο browser δεν υποστηρίζει notifications.");
-    return;
-  }
+  $("#requestNotifBtn")?.addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      alert("Ο browser δεν υποστηρίζει notifications.");
+      return;
+    }
 
     const permission = await Notification.requestPermission();
 
@@ -1060,8 +1084,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("#startDate").value = toYMD(new Date());
   }
 
-  await loadEntriesFromSupabase();
+  renderAll();
+
+  const entriesOk = await loadEntriesFromSupabase();
   await loadDayNotesFromSupabase();
+
+  if (!entriesOk) {
+    alert("Η βάση άργησε να ξυπνήσει. Κάνε refresh σε λίγα δευτερόλεπτα.");
+  }
+
   renderAll();
 });
 </script>
