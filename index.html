@@ -206,9 +206,13 @@ canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:16p
       <div class="small muted" style="margin-top:8px">Ροζ: πραγματικές διάρκειες κύκλου · Μωβ: smart prediction</div>
     </div>
     <div class="card">
-      <h2>Monthly report cards</h2>
-      <div id="reportCards"></div>
-    </div>
+  <h2>Monthly report cards</h2>
+  <div id="reportCards"></div>
+  <div class="row" style="margin-top:12px">
+    <button id="exportJsonBtn" class="ghost">Export JSON</button>
+    <button id="exportCsvBtn" class="secondary">Export CSV</button>
+  </div>
+</div>
     <div class="card">
       <h2>Notifications</h2>
       <div class="switchrow"><span>Υπενθύμιση 2 μέρες πριν την περίοδο</span><input id="reminderPeriod" type="checkbox"></div>
@@ -853,6 +857,72 @@ function startEdit(id) {
   await loadEntriesFromSupabase();
   renderAll();
 }
+  function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportDataAsJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    cycles: entries,
+    dayNotes: dayNotes
+  };
+
+  downloadFile(
+    `cycle-bloom-backup-${toYMD(new Date())}.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json"
+  );
+}
+
+function csvEscape(value) {
+  const str = String(value ?? "");
+  if (str.includes('"') || str.includes(",") || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function exportDataAsCsv() {
+  const header = [
+    "id",
+    "start_date",
+    "cycle_length",
+    "period_length",
+    "note",
+    "predicted_next_period",
+    "predicted_ovulation"
+  ];
+
+  const rows = entries.map(entry => {
+    const meta = cycleMeta(entry) || {};
+    return [
+      entry.id,
+      entry.startDate,
+      entry.cycleLength,
+      entry.periodLength,
+      entry.note || "",
+      meta.nextPeriod || "",
+      meta.ovulation || ""
+    ].map(csvEscape).join(",");
+  });
+
+  const csv = [header.join(","), ...rows].join("\n");
+
+  downloadFile(
+    `cycle-bloom-cycles-${toYMD(new Date())}.csv`,
+    csv,
+    "text/csv;charset=utf-8"
+  );
+}
 function renderAll() {
   sortEntries();
   renderHome();
@@ -952,21 +1022,25 @@ function bindEvents() {
     if ($("#dayModal")) $("#dayModal").classList.remove("open");
   });
 
-  $$(".tagbtn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      selectedDaySymbol = btn.dataset.symbol || "";
+    $$(".tagbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    selectedDaySymbol = btn.dataset.symbol || "";
 
-      $$(".tagbtn").forEach(b => {
-        b.classList.toggle("active", b.dataset.symbol === selectedDaySymbol);
-      });
+    $$(".tagbtn").forEach(b => {
+      b.classList.toggle("active", b.dataset.symbol === selectedDaySymbol);
     });
   });
+});
 
-  $("#requestNotifBtn")?.addEventListener("click", async () => {
-    if (!("Notification" in window)) {
-      alert("Ο browser δεν υποστηρίζει notifications.");
-      return;
-    }
+// export buttons
+$("#exportJsonBtn")?.addEventListener("click", exportDataAsJson);
+$("#exportCsvBtn")?.addEventListener("click", exportDataAsCsv);
+
+$("#requestNotifBtn")?.addEventListener("click", async () => {
+  if (!("Notification" in window)) {
+    alert("Ο browser δεν υποστηρίζει notifications.");
+    return;
+  }
 
     const permission = await Notification.requestPermission();
 
