@@ -2,53 +2,88 @@
 <html lang="el">
 <head>
 <meta charset="utf-8">
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem("cycleBloomTheme");
+    var theme = (saved === "light" || saved === "dark")
+      ? saved
+      : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  }catch(e){}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cycle Bloom Premium</title>
 <meta name="theme-color" content="#e88faa">
 <link rel="manifest" href="manifest.json">
 <style>
 :root{
-  --bg:#fff7fa; --card:#ffffff; --text:#4f2d38; --muted:#94727d; --line:#efdbe1;
+  --bg:#fff7fa; --bg-2:#ffffff; --card:#ffffff; --text:#4f2d38; --muted:#94727d; --line:#efdbe1;
   --accent:#e88faa; --accent-soft:#fff0f5; --accent-dark:#cf6787;
   --period:#ffb1c5; --fertile:#b9ebc3; --ovulation:#ffe170; --safe:#f3edf0;
   --nextperiod:#c8c5ff; --nextperiod-line:#8f89ea; --report:#d7f2ff; --trend:#fcebd6;
   --past-nextperiod:#ffd6a5; --past-ovulation:#d8b4fe;
   --shadow:0 10px 28px rgba(140,90,106,.10);
+  --surface:#ffffff; --surface-soft:#fffafb; --nav-bg:rgba(255,255,255,.95);
+  --danger-bg:#fff2f5; --danger-text:#a0536b;
+  --header-1:#ffe6ee; --header-2:#ffffff;
+  --big-1:#fff4f8; --big-2:#ffffff;
+  --navactive-1:#fff1f6; --navactive-2:#ffffff;
+  --day-mini-color:rgba(0,0,0,.62);
+  --modal-overlay:rgba(47,28,36,.35);
+}
+html[data-theme="dark"]{
+  --bg:#150f12; --bg-2:#1c1317; --card:#241a1f; --text:#f5e5ea; --muted:#c093a0; --line:#3a2830;
+  --accent:#f0a2ba; --accent-soft:#33212a; --accent-dark:#f6b8ca;
+  --period:#8a3f5b; --fertile:#2f6b45; --ovulation:#7c631f; --safe:#241a1f;
+  --nextperiod:#57519f; --nextperiod-line:#a9a3f7; --report:#1f4652; --trend:#5a4222;
+  --past-nextperiod:#7a4a20; --past-ovulation:#5c3a8a;
+  --shadow:0 10px 28px rgba(0,0,0,.5);
+  --surface:#241a1f; --surface-soft:#2b1f25; --nav-bg:rgba(24,17,20,.92);
+  --danger-bg:#3a1f26; --danger-text:#f4a6b8;
+  --header-1:#3a222c; --header-2:#241a1f;
+  --big-1:#2c1d24; --big-2:#241a1f;
+  --navactive-1:#2f2027; --navactive-2:#241a1f;
+  --day-mini-color:rgba(255,255,255,.82);
+  --modal-overlay:rgba(0,0,0,.6);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:linear-gradient(180deg,#fff7fa,#fff);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg-2));color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 .app{max-width:560px;margin:0 auto;min-height:100dvh;padding:14px 14px 92px}
-.header{background:linear-gradient(135deg,#ffe6ee,#fff);border:1px solid var(--line);border-radius:26px;padding:18px;box-shadow:var(--shadow)}
+.header{background:linear-gradient(135deg,var(--header-1),var(--header-2));border:1px solid var(--line);border-radius:26px;padding:18px;box-shadow:var(--shadow)}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .header h1{margin:0;font-size:1.45rem}.header p{margin:6px 0 0;color:var(--muted);font-size:.94rem}
+.theme-toggle{flex:0 0 auto;width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-size:1.15rem;line-height:1;padding:0}
 .screen{display:none}.screen.active{display:block}
 .card{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:var(--shadow)}
 .card h2{margin:0 0 10px;font-size:1.05rem}
 label{display:block;margin:8px 0 6px;color:var(--muted);font-size:.9rem}
 input,textarea,select,button{width:100%;font:inherit;border-radius:16px}
-input,textarea,select{border:1px solid var(--line);padding:13px 14px;background:#fff;color:var(--text)}
+input,textarea,select{border:1px solid var(--line);padding:13px 14px;background:var(--surface);color:var(--text)}
 textarea{min-height:82px;resize:vertical}
 button{border:none;padding:14px;background:linear-gradient(180deg,#eea3ba,#e88faa);color:#fff;font-weight:700}
-button.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
+button.secondary{background:var(--surface);color:var(--text);border:1px solid var(--line)}
 button.ghost{background:var(--accent-soft);color:var(--text);border:1px solid var(--line)}
-button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
+button.danger{background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--line)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{border:1px solid var(--line);border-radius:18px;padding:12px;background:linear-gradient(180deg,#fff,#fffafb)}
+.stat{border:1px solid var(--line);border-radius:18px;padding:12px;background:linear-gradient(180deg,var(--surface),var(--surface-soft))}
 .stat small{display:block;color:var(--muted)} .stat strong{display:block;margin-top:4px;font-size:1rem}
-.big{border:1px solid var(--line);border-radius:20px;padding:16px;background:linear-gradient(180deg,#fff4f8,#fff)}
+.big{border:1px solid var(--line);border-radius:20px;padding:16px;background:linear-gradient(180deg,var(--big-1),var(--big-2))}
 .big small{display:block;color:var(--muted)} .big strong{display:block;font-size:1.35rem;margin-top:5px}
 .pill{display:inline-block;padding:8px 12px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--line);font-size:.84rem}
 .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.badge{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:.82rem}
+.badge{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:.82rem}
 .badge.report{background:var(--report)}
 .badge.trend{background:var(--trend)}
 .calendar-head{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center;margin-bottom:10px}
 .calendar-head button{padding:10px 0}.cal-title{text-align:center;font-weight:700}
 .weekdays,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .weekdays div{text-align:center;font-size:.78rem;color:var(--muted)}
-.day{min-height:82px;border-radius:18px;border:1px solid #ece2e6;background:var(--safe);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 4px;cursor:pointer;position:relative}
+.day{min-height:82px;border-radius:18px;border:1px solid var(--line);background:var(--safe);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 4px;cursor:pointer;position:relative}
 .day .num{font-weight:700}
-.day .mini{margin-top:4px;font-size:.72rem;color:rgba(0,0,0,.62);text-align:center;line-height:1.05}
+.day .mini{margin-top:4px;font-size:.72rem;color:var(--day-mini-color);text-align:center;line-height:1.05}
 .day .sym{margin-top:4px;font-size:1rem}
 .day.period{background:var(--period);border-color:#ea89a7}
 .day.fertile{background:var(--fertile);border-color:#84cf93}
@@ -77,19 +112,19 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .legend span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.84rem}
 .dot{width:14px;height:14px;border-radius:7px;border:1px solid rgba(0,0,0,.05);display:inline-block}
-.insight,.history-item,.reminder-item,.report-card{margin-top:10px;border:1px solid var(--line);border-radius:18px;background:#fff;padding:12px}
+.insight,.history-item,.reminder-item,.report-card{margin-top:10px;border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:12px}
 .insight strong,.history-item strong,.reminder-item strong,.report-card strong{display:block;margin-bottom:4px}
 .history-actions{display:flex;gap:8px;margin-top:10px}.history-actions button{width:auto;padding:10px 12px;border-radius:12px}
-.bottom-nav{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;background:var(--nav-bg);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
 .bottom-wrap{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.nav-btn{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:10px 6px;font-size:.75rem}
-.nav-btn.active{color:var(--text);font-weight:700;background:linear-gradient(180deg,#fff1f6,#fff)}
+.nav-btn{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:10px 6px;font-size:.75rem}
+.nav-btn.active{color:var(--text);font-weight:700;background:linear-gradient(180deg,var(--navactive-1),var(--navactive-2))}
 .small{font-size:.86rem}.muted{color:var(--muted)}
 .empty-state{padding:14px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);text-align:center}
 .modal{
   position:fixed;
   inset:0;
-  background:rgba(47,28,36,.35);
+  background:var(--modal-overlay);
   display:none;
   align-items:flex-end;
   justify-content:center;
@@ -99,7 +134,7 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .modal.open{display:flex}
 .sheet{
   width:min(560px,100%);
-  background:#fff;
+  background:var(--surface);
   border-radius:24px 24px 18px 18px;
   padding:16px;
   box-shadow:0 18px 50px rgba(0,0,0,.18);
@@ -110,17 +145,17 @@ button.danger{background:#fff2f5;color:#a0536b;border:1px solid var(--line)}
 .modal-actions{
   position:sticky;
   bottom:-16px;
-  background:#fff;
+  background:var(--surface);
   padding-top:12px;
   padding-bottom:calc(4px + env(safe-area-inset-bottom));
   margin-top:12px;
 }.sheet h3{margin:0 0 8px}.sheet .close-row{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
 .tagrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.tagbtn{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px 6px;font-size:1.1rem}
+.tagbtn{background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px 6px;font-size:1.1rem}
 .tagbtn.active{background:var(--accent-soft);border-color:var(--accent)}
 .canvas-wrap{margin-top:10px}
-canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:16px}
-.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #f4e7eb}
+canvas{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .switchrow:last-child{border-bottom:none}
 .switchrow input{width:20px;height:20px}
 .note{font-size:.82rem;color:var(--muted);margin-top:8px;line-height:1.4}
@@ -129,7 +164,10 @@ canvas{width:100%;background:#fff;border:1px solid var(--line);border-radius:16p
 <body>
 <div class="app">
   <div class="header">
-    <h1>Cycle Bloom Premium</h1>
+    <div class="header-top">
+      <h1>Cycle Bloom Premium</h1>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Εναλλαγή σκούρου φωτισμού">🌙</button>
+    </div>
     <p>Με ξεχωριστή σήμανση επόμενης περιόδου, report cards, trend badges και notifications μέσα στην εφαρμογή — plus προετοιμασία για push.</p>
   </div>
 
@@ -303,6 +341,7 @@ let isLoading = false;
 
 const LOCAL_CYCLES_KEY = "cycleBloomCachedEntries";
 const LOCAL_DAYNOTES_KEY = "cycleBloomCachedDayNotes";
+const THEME_KEY = "cycleBloomTheme";
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -346,6 +385,38 @@ function escapeHtml(str) {
     '"': "&quot;",
     "'": "&#39;"
   }[m]));
+}
+
+/* ---------- theme (dark mode) ---------- */
+
+function getPreferredTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch (e) {}
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+
+  const btn = $("#themeToggle");
+  if (btn) {
+    btn.textContent = theme === "dark" ? "☀️" : "🌙";
+    btn.setAttribute("aria-label", theme === "dark" ? "Ενεργοποίηση φωτεινού φωτισμού" : "Ενεργοποίηση σκούρου φωτισμού");
+  }
+
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", theme === "dark" ? "#1c1317" : "#e88faa");
+
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+
+  renderReports();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  applyTheme(current === "dark" ? "light" : "dark");
 }
 
 function sortEntries() {
@@ -848,11 +919,18 @@ function renderReports() {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  const cs = getComputedStyle(document.documentElement);
+  const colorGrid = (cs.getPropertyValue("--line") || "#f0dfe5").trim();
+  const colorMuted = (cs.getPropertyValue("--muted") || "#94727d").trim();
+  const colorText = (cs.getPropertyValue("--text") || "#4f2d38").trim();
+  const colorLine1 = (cs.getPropertyValue("--accent") || "#e88faa").trim();
+  const colorLine2 = (cs.getPropertyValue("--nextperiod-line") || "#8f89ea").trim();
+
   const recent = entries.slice(-8);
   if (!recent.length) {
-    ctx.fillStyle = "#94727d";
+    ctx.fillStyle = colorMuted;
     ctx.font = "16px sans-serif";
-    ctx.fillText("Δεν υπάρχουν αρκετά მონაცემები για report.", 20, 40);
+    ctx.fillText("Δεν υπάρχουν αρκετά δεδομένα για report.", 20, 40);
     return;
   }
 
@@ -863,7 +941,7 @@ function renderReports() {
   const w = canvas.width;
   const h = canvas.height;
 
-  ctx.strokeStyle = "#f0dfe5";
+  ctx.strokeStyle = colorGrid;
   for (let i = 0; i < 4; i++) {
     const y = padSize + ((h - padSize * 2) / 3) * i;
     ctx.beginPath();
@@ -875,7 +953,7 @@ function renderReports() {
   const step = recent.length > 1 ? (w - padSize * 2) / (recent.length - 1) : 0;
   const yPos = v => h - padSize - (v / maxY) * (h - padSize * 2);
 
-  ctx.strokeStyle = "#e88faa";
+  ctx.strokeStyle = colorLine1;
   ctx.lineWidth = 3;
   ctx.beginPath();
   vals.forEach((v, i) => {
@@ -886,7 +964,7 @@ function renderReports() {
   });
   ctx.stroke();
 
-  ctx.strokeStyle = "#8f89ea";
+  ctx.strokeStyle = colorLine2;
   ctx.lineWidth = 2;
   ctx.beginPath();
   smart.forEach((v, i) => {
@@ -899,7 +977,7 @@ function renderReports() {
 
   recent.forEach((e, i) => {
     const x = padSize + step * i;
-    ctx.fillStyle = "#4f2d38";
+    ctx.fillStyle = colorText;
     ctx.font = "11px sans-serif";
     ctx.fillText(e.startDate.slice(5), x - 16, h - 10);
   });
@@ -1046,6 +1124,8 @@ function bindEvents() {
   $("#saveBtn")?.addEventListener("click", saveEntry);
   $("#clearBtn")?.addEventListener("click", () => clearForm());
 
+  $("#themeToggle")?.addEventListener("click", toggleTheme);
+
   $$(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => showScreen(btn.dataset.screen));
   });
@@ -1165,6 +1245,7 @@ function bindEvents() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
+  applyTheme(document.documentElement.getAttribute("data-theme") || getPreferredTheme());
   showScreen("home");
 
   if ($("#startDate") && !$("#startDate").value) {
